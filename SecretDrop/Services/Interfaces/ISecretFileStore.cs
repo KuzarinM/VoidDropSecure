@@ -1,6 +1,6 @@
 ﻿using SecretDrop.Models;
 
-namespace SecretDrop.Services
+namespace SecretDrop.Services.Interfaces
 {
     public interface ISecretFileStore
     {

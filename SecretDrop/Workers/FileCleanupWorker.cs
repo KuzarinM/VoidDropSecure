@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Options;
 using SecretDrop.Configurations;
+using SecretDrop.Services.Interfaces;
 
-namespace SecretDrop.Services
+namespace SecretDrop.Workers
 {
     public class FileCleanupWorker : BackgroundService
     {

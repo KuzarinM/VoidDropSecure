@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Options;
 using SecretDrop.Configurations;
 using SecretDrop.Models;
+using SecretDrop.Services.Interfaces;
 using System.Text.Json;
 
-namespace SecretDrop.Services
+namespace SecretDrop.Services.Implementations
 {
     public class FileStoreService : ISecretFileStore
     {

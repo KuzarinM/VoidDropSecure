@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using SecretDrop.Services;
+using SecretDrop.Services.Interfaces;
 
 namespace SecretDrop.Pages
 {

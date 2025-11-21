@@ -1,4 +1,4 @@
-﻿namespace SecretDrop.Services
+﻿namespace SecretDrop.Services.Interfaces
 {
     public interface ISecretStore
     {

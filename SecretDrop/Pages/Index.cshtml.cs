@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SecretDrop.Models;
-using SecretDrop.Services;
+using SecretDrop.Services.Interfaces;
 
 namespace SecretDrop.Pages
 {

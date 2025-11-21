@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
+using SecretDrop.Services.Interfaces;
 
-namespace SecretDrop.Services
+namespace SecretDrop.Services.Implementations
 {
     public class SecretStoreService : ISecretStore
     {
