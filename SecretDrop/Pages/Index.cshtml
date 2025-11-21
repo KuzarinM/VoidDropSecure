@@ -1,0 +1,538 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Новый секрет";
+}
+
+<div class="container" style="max-width: 650px;">
+    <div class="main-card">
+        <div class="text-center mb-5">
+            <!-- Big Logo Wrapper -->
+
+            <div class="d-inline-block mb-3 position-relative">
+                <!-- Задний фон свечения (Градиент зеленый) -->
+                <div class="position-absolute top-50 start-50 translate-middle"
+                     style="width: 120px; height: 120px; background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; z-index: -1;"></div>
+
+                <svg width="80" height="80" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="d-block mx-auto">
+                    <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke="#10b981" stroke-width="2" stroke-linejoin="round" fill="rgba(6, 78, 59, 0.5)" />
+                    <rect x="15" y="15" width="10" height="10" rx="2" fill="#e2e8f0" class="logo-core-pulse" />
+                    <path d="M20 2V10 M20 30V38 M4 11L11 15 M36 11L29 15" stroke="#10b981" stroke-width="1" stroke-opacity="0.5" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills nav-fill mb-4" id="typeTabs">
+            <li class="nav-item">
+                <button class="nav-link active" id="tab-file" onclick="switchTab('file')">
+                    <i class="bi bi-file-earmark-lock me-2"></i>Файл
+                </button>
+            </li>
+            <li class="nav-item ms-2">
+                <button class="nav-link" id="tab-text" onclick="switchTab('text')">
+                    <i class="bi bi-chat-text me-2"></i>Текст
+                </button>
+            </li>
+        </ul>
+
+        <!-- File Area -->
+        <div id="pane-file" class="mb-4">
+            <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <i class="bi bi-cloud-upload"></i>
+                <h5 class="fw-normal">Нажмите или перетащите файл сюда</h5>
+                <p class="text-muted small mb-0" id="fileNameDisplay">Поддерживаются файлы до 5 ГБ</p>
+                <input type="file" id="fileInput" class="d-none" onchange="updateFileName(this)">
+            </div>
+        </div>
+
+        <!-- Text Area -->
+        <div id="pane-text" class="mb-4 d-none">
+            <label class="form-label text-muted small">ВАШЕ СООБЩЕНИЕ</label>
+            <textarea id="textInput" class="form-control font-monospace" rows="6"
+                      placeholder="Вставьте пароль, приватный ключ или заметку..."></textarea>
+        </div>
+
+        <!-- Options Grid -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label text-muted small text-uppercase fw-bold">Срок жизни</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-hourglass-split"></i></span>
+                    <select id="ttl" class="form-select">
+                        <option value="60">1 час</option>
+                        <option value="1440" selected>24 часа</option>
+                        <option value="4320">3 дня</option>
+                        <option value="10080">7 дней</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted small text-uppercase fw-bold">Лимит скачиваний</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-download"></i></span>
+                    <select id="limit" class="form-select">
+                        <option value="1">1 раз (Сжечь сразу)</option>
+                        <option value="2">2 раза</option>
+                        <option value="5">5 раз</option>
+                        <option value="100">100 раз</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-4">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="usePassword" onchange="togglePassword(this)">
+                    <label class="form-check-label text-muted small fw-bold text-uppercase" for="usePassword">Защитить паролем</label>
+                </div>
+                <div id="passwordBlock" class="d-none collapse show">
+                    <input type="password" id="senderPassword" class="form-control font-monospace" placeholder="Придумайте пароль..." autocomplete="new-password">
+                    <small class="text-muted" style="font-size: 0.75rem;">Пароль не передается на сервер. Если забудете - данные не восстановить.</small>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="startUpload()" id="btnSend" class="btn btn-primary w-100 py-3">
+            <i class="bi bi-shield-check me-2"></i>Зашифровать и получить ссылку
+        </button>
+
+        <!-- Progress -->
+        <div id="progressArea" class="mt-4 d-none">
+            <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted">Шифрование и отправка...</span>
+                <span id="progressText" class="text-primary">0%</span>
+            </div>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div id="resultArea" class="mt-4 d-none">
+            <div class="result-box text-center animate-fade-in">
+                <div class="mb-3 text-success">
+                    <i class="bi bi-check-circle-fill fs-1"></i>
+                </div>
+
+                <h5 class="text-white mb-3">Секрет готов!</h5>
+
+                <!-- Поле с ссылкой -->
+                <div class="input-group mb-3">
+                    <input type="text" id="resultLink" class="form-control link-input text-center text-primary fw-bold" readonly>
+                    <button class="btn btn-outline-success" onclick="copyLink()" id="btnCopy" title="Копировать">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+
+                <!-- Кнопка показать QR -->
+                <button class="btn btn-sm btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#qrCollapse" aria-expanded="false" aria-controls="qrCollapse">
+                    <i class="bi bi-qr-code me-2"></i>Показать QR-код
+                </button>
+
+                <!-- Сам QR (скрыт по умолчанию) -->
+                <div class="collapse" id="qrCollapse">
+                    <!-- Обертка для позиционирования "Скопировано" -->
+                    <div class="position-relative d-inline-block">
+
+                        <!-- Контейнер QR -->
+                        <div id="qrcode-container"
+                             class="card card-body bg-white text-center p-3 mb-3 position-relative"
+                             style="max-width: 200px; cursor: pointer;"
+                             onclick="copyQrImage()"
+                             title="Нажмите, чтобы скопировать картинку">
+
+                            <!-- Сюда библиотека вставит QR -->
+                            <div id="qrcode"></div>
+
+                            <small class="text-dark mt-2 d-block fw-bold noselect" style="font-size: 0.7rem;">
+                                SCAN OR CLICK
+                            </small>
+                        </div>
+
+                        <!-- Всплывашка "Скопировано" (абсолютно позиционирована по центру) -->
+                        <div id="qrCopiedBadge"
+                             class="position-absolute top-50 start-50 translate-middle badge bg-success shadow-lg d-none"
+                             style="pointer-events: none; z-index: 10; font-size: 0.9rem;">
+                            <i class="bi bi-check-lg me-1"></i>Скопировано!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning border-0 bg-opacity-10 py-2 mb-0">
+                    <small class="text-warning opacity-75"><i class="bi bi-exclamation-circle me-1"></i> Ссылка работает <b>один раз</b> (или согласно лимиту).</small>
+                </div>
+            </div>
+
+            <button onclick="location.reload()" class="btn btn-link text-muted w-100 mt-3 text-decoration-none">
+                <i class="bi bi-plus-lg me-1"></i>Создать новый
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'file';
+    const CHUNK_SIZE = 4 * 1024 * 1024;
+
+    function switchTab(mode) {
+        currentMode = mode;
+        document.getElementById('tab-file').className = mode === 'file' ? 'nav-link active' : 'nav-link';
+        document.getElementById('tab-text').className = mode === 'text' ? 'nav-link active' : 'nav-link';
+
+        if(mode === 'file') {
+            document.getElementById('pane-file').classList.remove('d-none');
+            document.getElementById('pane-text').classList.add('d-none');
+        } else {
+            document.getElementById('pane-file').classList.add('d-none');
+            document.getElementById('pane-text').classList.remove('d-none');
+        }
+    }
+
+    function copyLink() {
+        const copyText = document.getElementById("resultLink");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+        // Визуальный эффект
+        const btn = document.querySelector('#resultArea button');
+        const originalText = btn.innerText;
+        btn.innerText = "✅";
+        setTimeout(() => btn.innerText = originalText, 2000);
+    }
+
+    function togglePassword(chk) {
+        const block = document.getElementById('passwordBlock');
+        const passInput = document.getElementById('senderPassword');
+
+        if (chk.checked) {
+            block.classList.remove('d-none');
+            // Небольшая задержка для плавности анимации (если есть) и фокус
+            setTimeout(() => passInput.focus(), 50);
+        } else {
+            block.classList.add('d-none');
+            passInput.value = ''; // Очищаем пароль, если выключили галочку
+        }
+    }
+
+     async function startUpload() {
+        const btn = document.getElementById('btnSend');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressArea = document.getElementById('progressArea');
+
+        document.getElementById('resultArea').classList.add('d-none');
+
+        let blobToSend = null;
+        let filename = 'secret';
+        let type = 'file';
+
+        try {
+            // 1. Подготовка (Файл или Текст)
+            if (currentMode === 'file') {
+                const fileInput = document.getElementById('fileInput');
+                if (!fileInput.files[0]) { alert("Выберите файл!"); return; }
+                blobToSend = fileInput.files[0];
+                filename = blobToSend.name;
+                type = 'file';
+            } else {
+                const textVal = document.getElementById('textInput').value;
+                if (!textVal) { alert("Введите текст!"); return; }
+                blobToSend = new Blob([textVal], { type: 'text/plain' });
+                filename = 'secure_message.txt';
+                type = 'message';
+            }
+
+            // Проверка пароля
+            const usePass = document.getElementById('usePassword').checked;
+            const password = document.getElementById('senderPassword').value;
+            if (usePass && !password) { alert("Введите пароль!"); return; }
+
+            // UI
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
+            progressArea.classList.remove('d-none');
+            updateProgress(0);
+
+            // 2. Генерация ГЛАВНОГО ФАЙЛОВОГО КЛЮЧА (Master Key)
+            const fileKey = await window.crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+            );
+            const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
+
+            // Переменные для сервера и ссылки
+            let urlHashKey = null;     // Ключ, который пойдет в ссылку (#...)
+            let passwordSalt = null;   // Соль для сервера
+            let wrappedKeyBlob = null; // Зашифрованный ключ для сервера
+
+            if (usePass) {
+                // === ДВОЙНОЕ ШИФРОВАНИЕ (МАТРЕШКА) ===
+
+                // A. Генерируем случайный ключ для Ссылки (URL Key)
+                const urlKey = await window.crypto.subtle.generateKey(
+                    { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+                );
+
+                // B. Генерируем ключ из Пароля (Password Key)
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                passwordSalt = toBase64(salt);
+                const passKey = await deriveKeyFromPassword(password, salt);
+
+                // C. Экспортируем Master Key в байты
+                const rawFileKey = await window.crypto.subtle.exportKey("raw", fileKey);
+
+                // D. СЛОЙ 1: Шифруем Master Key Паролем
+                const innerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                const innerEncrypted = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: innerIv }, passKey, rawFileKey
+                );
+
+                // E. СЛОЙ 2: Шифруем результат Ключом из Ссылки
+                const outerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                // Важно: шифруем (IV1 + Cipher1)
+                const innerBlob = new Uint8Array(innerIv.length + innerEncrypted.byteLength);
+                innerBlob.set(innerIv);
+                innerBlob.set(new Uint8Array(innerEncrypted), 12);
+
+                const outerEncrypted = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: outerIv }, urlKey, innerBlob
+                );
+
+                // F. Собираем финальную матрешку: [OuterIV] + [Encrypted( InnerIV + EncryptedMasterKey )]
+                const finalBlob = new Uint8Array(outerIv.length + outerEncrypted.byteLength);
+                finalBlob.set(outerIv);
+                finalBlob.set(new Uint8Array(outerEncrypted), 12);
+
+                wrappedKeyBlob = toBase64(finalBlob);
+
+                // G. В ссылку кладем URL Key
+                const exportedUrlKey = await window.crypto.subtle.exportKey("jwk", urlKey);
+                urlHashKey = exportedUrlKey.k;
+
+            } else {
+                // === ОБЫЧНОЕ ШИФРОВАНИЕ (БЕЗ ПАРОЛЯ) ===
+                // В ссылку кладем сам Master Key
+                const jwk = await window.crypto.subtle.exportKey("jwk", fileKey);
+                urlHashKey = jwk.k;
+                // wrappedKeyBlob остается null
+            }
+
+            // 3. Отправка метаданных
+            const meta = JSON.stringify({
+                filename: filename,
+                size: blobToSend.size,
+                iv: toBase64(fileIvBase),
+                type: type
+            });
+
+            const initResp = await fetch('?handler=Init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meta: meta,
+                    ttl: document.getElementById('ttl').value,
+                    limit: document.getElementById('limit').value,
+                    passwordSalt: passwordSalt,
+                    wrappedKey: wrappedKeyBlob
+                })
+            });
+
+            if (!initResp.ok) throw new Error("Ошибка инициализации: " + initResp.status);
+            const { id } = await initResp.json();
+
+            // 4. Шифрование и загрузка файла (Chunked)
+            let offset = 0;
+            let chunkIndex = 0;
+            while (offset < blobToSend.size) {
+                const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
+                const chunkBuffer = await chunkBlob.arrayBuffer();
+
+                const chunkIv = deriveIv(fileIvBase, chunkIndex);
+                const encryptedChunk = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: chunkIv }, fileKey, chunkBuffer
+                );
+
+                const chunkResp = await fetch(`?handler=Chunk&id=${id}`, {
+                    method: 'POST', body: encryptedChunk
+                });
+                if (!chunkResp.ok) throw new Error("Upload Error");
+
+                offset += CHUNK_SIZE;
+                chunkIndex++;
+                updateProgress(Math.min(100, Math.round((offset / blobToSend.size) * 100)));
+            }
+
+            // 5. Результат
+            const link = `${window.location.origin}/view/${id}#${urlHashKey}`;
+            document.getElementById('resultLink').value = link;
+            document.getElementById('resultArea').classList.remove('d-none');
+            if (typeof generateQR === "function") generateQR(link);
+
+        } catch (err) {
+            console.error(err);
+            alert("Ошибка: " + err.message);
+            if(progressBar) progressBar.classList.add('bg-danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-shield-check me-2"></i>Зашифровать и получить ссылку';
+            progressArea.classList.add('d-none');
+            if(progressBar) progressBar.classList.remove('bg-danger');
+        }
+    }
+
+    function updateProgress(percent) {
+        const bar = document.getElementById('progressBar');
+        const txt = document.getElementById('progressText');
+        if(bar) bar.style.width = percent + '%';
+        if(txt) txt.innerText = percent + '%';
+    }
+
+    // ... toBase64 и deriveIv остаются без изменений ...
+    function deriveIv(baseIv, counter) {
+        const iv = new Uint8Array(baseIv);
+        const view = new DataView(iv.buffer);
+        const currentLast4 = view.getUint32(8, true);
+        view.setUint32(8, currentLast4 ^ counter, true);
+        return iv;
+    }
+    function toBase64(u8) { return btoa(String.fromCharCode.apply(null, u8)); }
+
+     // Добавим маленькую функцию для красоты имени файла
+    function updateFileName(input) {
+        const display = document.getElementById('fileNameDisplay');
+        if (input.files && input.files[0]) {
+            display.innerText = "Выбран: " + input.files[0].name;
+            display.classList.add('text-primary', 'fw-bold');
+        } else {
+            display.innerText = "Поддерживаются файлы любого размера";
+            display.classList.remove('text-primary', 'fw-bold');
+        }
+    }
+
+    function generateQR(text) {
+        const container = document.getElementById("qrcode");
+        container.innerHTML = ""; // Очищаем, если там что-то было
+
+        new QRCode(container, {
+            text: text,
+            width: 160,
+            height: 160,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.M
+        });
+    }
+
+    // Drag & Drop Visuals
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        dropZone.classList.remove('dragover');
+        const dt = e.dataTransfer;
+        document.getElementById('fileInput').files = dt.files;
+        updateFileName(document.getElementById('fileInput'));
+    });
+
+    // ... Вставь функцию copyLink, но обнови ID кнопки ...
+    function copyLink() {
+        const copyText = document.getElementById("resultLink");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+
+        const btn = document.getElementById('btnCopy');
+        const icon = btn.querySelector('i');
+        icon.classList.remove('bi-clipboard');
+        icon.classList.add('bi-check-lg');
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-outline-success');
+
+        setTimeout(() => {
+            icon.classList.add('bi-clipboard');
+            icon.classList.remove('bi-check-lg');
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+        }, 2000);
+    }
+        async function copyQrImage() {
+        const container = document.getElementById("qrcode");
+        // Библиотека генерирует canvas. Найдем его.
+        const canvas = container.querySelector("canvas");
+
+        if (!canvas) {
+            alert("Ошибка: QR-код еще не сгенерирован или браузер не поддерживает Canvas.");
+            return;
+        }
+
+        try {
+            // 1. Конвертируем Canvas в Blob (PNG)
+            canvas.toBlob(async function(blob) {
+                if (!blob) return;
+
+                // 2. Создаем элемент буфера обмена
+                // Внимание: Clipboard API требует HTTPS (или localhost)
+                const item = new ClipboardItem({ "image/png": blob });
+
+                // 3. Пишем в буфер
+                await navigator.clipboard.write([item]);
+
+                // 4. Показываем эффект успеха
+                showQrCopiedEffect();
+            }, 'image/png');
+
+        } catch (err) {
+            console.error("Не удалось скопировать QR:", err);
+            alert("Не удалось скопировать. Возможно, нет контекста безопасности (HTTPS).");
+        }
+    }
+
+    function showQrCopiedEffect() {
+        const badge = document.getElementById('qrCopiedBadge');
+        const container = document.getElementById('qrcode-container');
+
+        // Показываем плашку
+        badge.classList.remove('d-none');
+
+        // Легкий визуальный "отклик" контейнера
+        container.style.transform = "scale(0.95)";
+        setTimeout(() => container.style.transform = "scale(1)", 150);
+
+        // Прячем через 2 секунды
+        setTimeout(() => {
+            badge.classList.add('d-none');
+        }, 2000);
+    }
+
+     async function deriveKeyFromPassword(password, salt) {
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey(
+            "raw",
+            enc.encode(password),
+            { name: "PBKDF2" },
+            false,
+            ["deriveKey"]
+        );
+
+        return await window.crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 100000, // 100k итераций - хороший баланс скорости и защиты
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 }, // На выходе хотим AES ключ
+            false,
+            ["encrypt", "decrypt"]
+        );
+    }
+
+    function updateProgress(percent) {
+        const bar = document.getElementById('progressBar');
+        const txt = document.getElementById('progressText');
+        if(bar) bar.style.width = percent + '%';
+        if(txt) txt.innerText = percent + '%';
+    }
+</script>
