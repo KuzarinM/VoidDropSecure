@@ -32,6 +32,8 @@ builder.Services.Configure<FormOptions>(x =>
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<ISecretFileStore, FileStoreService>();
 builder.Services.AddHostedService<FileCleanupWorker>();
+builder.Services.AddSingleton<IDropSessionStore, DropSessionStore>();
+builder.Services.AddMemoryCache();
 
 builder.Services.Configure<RouteOptions>(options =>
 {

@@ -18,44 +18,56 @@
 <body>
     <div class="app-wrapper d-flex flex-column min-vh-100">
         <!-- Navbar -->
+
         <nav class="navbar navbar-expand-lg navbar-dark glass-effect mb-4 sticky-top">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center fw-bold tracking-tight" href="/">
-                    <!-- LOGO START -->
                     <div class="position-relative me-2 logo-container">
                         <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <defs>
                                 <linearGradient id="logo_grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#34d399" /> <!-- Light Emerald -->
-                                    <stop offset="1" stop-color="#059669" /> <!-- Dark Emerald -->
+                                    <stop stop-color="#34d399" />
+                                    <stop offset="1" stop-color="#059669" />
                                 </linearGradient>
                                 <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                                     <feGaussianBlur stdDeviation="2" result="blur" />
                                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                                 </filter>
                             </defs>
-                            <!-- Щит с зеленой заливкой -->
-                            <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z"
-                                  stroke="url(#logo_grad)"
-                                  stroke-width="3"
-                                  stroke-linejoin="round"
-                                  fill="rgba(16, 185, 129, 0.1)" />
-
-                            <!-- Ядро -->
+                            <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke="url(#logo_grad)" stroke-width="3" stroke-linejoin="round" fill="rgba(16, 185, 129, 0.1)" />
                             <rect x="16" y="16" width="8" height="8" rx="1" fill="#e2e8f0" filter="url(#glow)" />
-
-                            <!-- Линии -->
                             <path d="M20 2V8 M20 32V38 M4 11L9 14 M36 11L31 14" stroke="url(#logo_grad)" stroke-width="1.5" stroke-opacity="0.5" />
                         </svg>
                     </div>
-                    <!-- LOGO END -->
-
                     <span style="font-family: 'JetBrains Mono', monospace; letter-spacing: -1px;">
                         Void<span class="text-primary">Drop</span>
                     </span>
                 </a>
+
+                <!-- Кнопка "Бургер" для мобильных -->
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Меню -->
+                <div class="collapse navbar-collapse" id="navbarContent">
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="/">
+                                <i class="bi bi-send me-1"></i>Отправить
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="/Request">
+                                <i class="bi bi-box-arrow-in-down me-1"></i>Получить
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </nav>
+
+
 
         <!-- Main Content -->
         <main role="main" class="flex-grow-1 d-flex align-items-center">
