@@ -50,6 +50,27 @@
             </div>
         </div>
 
+        <!-- IMAGE VIEW AREA -->
+        <div id="imageArea" class="d-none mt-4 animate-fade-in text-center">
+            <div class="mb-3 d-flex justify-content-between align-items-center">
+                <span class="text-muted small text-uppercase fw-bold">Изображение</span>
+                <a id="btnDownloadImage" href="#" download="secret-image.png" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-download me-1"></i> Скачать оригинал
+                </a>
+            </div>
+            <div class="p-2 bg-dark rounded border border-secondary d-inline-block position-relative">
+                <!-- Спиннер загрузки картинки -->
+                <div id="imgSpinner" class="position-absolute top-50 start-50 translate-middle text-muted">
+                    <div class="spinner-border spinner-border-sm"></div>
+                </div>
+                <img id="secretImageDisplay" class="img-fluid rounded" style="max-height: 80vh; min-height: 100px;" onload="document.getElementById('imgSpinner').classList.add('d-none')">
+            </div>
+            <div class="text-center mt-4 pt-3 border-top border-secondary">
+                <p class="text-success mb-3"><i class="bi bi-check-circle me-1"></i> Расшифровано успешно</p>
+                <a href="/" class="btn btn-outline-secondary">Отправить ответ</a>
+            </div>
+        </div>
+
         <!-- FILE DOWNLOAD VIEW -->
         <div id="fileSuccessArea" class="d-none mt-4 text-center animate-fade-in">
             <div class="py-4">
@@ -220,6 +241,54 @@
         }
     }
 
+    async function handleImageDecrypt(reader, key, ivBase, filename) {
+        let buffer = new Uint8Array(0);
+        let chunkIndex = 0;
+        let decryptedParts = [];
+
+        // 1. Читаем и расшифровываем (аналогично тексту)
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const newBuf = new Uint8Array(buffer.length + value.length);
+            newBuf.set(buffer);
+            newBuf.set(value, buffer.length);
+            buffer = newBuf;
+
+            while (buffer.length >= ENCRYPTED_CHUNK_SIZE) {
+                const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE);
+                buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
+                const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++);
+                decryptedParts.push(decrypted);
+            }
+        }
+        // Хвост
+        if (buffer.length > 0) {
+            const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex);
+            decryptedParts.push(decrypted);
+        }
+
+        // 2. Создаем Blob
+        // Пытаемся угадать MIME по расширению, или ставим дефолт
+        let mime = 'image/png';
+        if(filename.match(/\.jpe?g$/i)) mime = 'image/jpeg';
+        if(filename.match(/\.webp$/i)) mime = 'image/webp';
+        if(filename.match(/\.gif$/i)) mime = 'image/gif';
+
+        const blob = new Blob(decryptedParts, { type: mime });
+        const url = URL.createObjectURL(blob);
+
+        // 3. Вставляем в <img>
+        const img = document.getElementById('secretImageDisplay');
+        img.src = url;
+
+        // Настраиваем кнопку скачивания
+        const btnDl = document.getElementById('btnDownloadImage');
+        btnDl.href = url;
+        btnDl.download = filename || 'secret-image.png';
+    }
+
     // === ОБЩАЯ ЛОГИКА СКАЧИВАНИЯ ===
     async function startDownload(fileKey) {
         try {
@@ -245,7 +314,18 @@
 
                 document.getElementById('lockedState').classList.add('d-none');
                 document.getElementById('messageArea').classList.remove('d-none');
-            } else {
+            }
+            else if (fileMeta.type === 'image') {
+                // Скрываем кнопку, пишем статус
+                document.getElementById('btnReveal').classList.add('d-none');
+                document.getElementById('status').innerText = "Расшифровка изображения...";
+
+                await handleImageDecrypt(reader, fileKey, fileIvBase, fileMeta.filename);
+
+                document.getElementById('lockedState').classList.add('d-none');
+                document.getElementById('imageArea').classList.remove('d-none');
+            }
+            else {
                 // Файл сохраняем через StreamSaver
                 // Скрываем кнопку, показываем статус
                 document.getElementById('btnReveal').classList.add('d-none');

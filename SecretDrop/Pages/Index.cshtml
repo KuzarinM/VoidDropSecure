@@ -34,6 +34,11 @@
                     <i class="bi bi-chat-text me-2"></i>Текст
                 </button>
             </li>
+            <li class="nav-item ms-2">
+                <button class="nav-link" id="tab-image" onclick="switchTab('image')">
+                    <i class="bi bi-card-image me-2"></i>Картинка
+                </button>
+            </li>
         </ul>
 
         <!-- File Area -->
@@ -51,6 +56,21 @@
             <label class="form-label text-muted small">ВАШЕ СООБЩЕНИЕ</label>
             <textarea id="textInput" class="form-control font-monospace" rows="6"
                       placeholder="Вставьте пароль, приватный ключ или заметку..."></textarea>
+        </div>
+
+        <!-- Image Area -->
+        <div id="pane-image" class="mb-4 d-none">
+            <div class="file-drop-zone" id="imageDropZone" onclick="document.getElementById('imageInput').click()">
+                <div id="imagePreviewPlaceholder">
+                    <i class="bi bi-image fs-1"></i>
+                    <h5 class="fw-normal mt-2">Нажмите, перетащите или <span class="text-primary fw-bold">Вставьте (Ctrl+V)</span></h5>
+                    <p class="text-muted small mb-0">Поддерживаются JPG, PNG, WEBP, GIF</p>
+                </div>
+                <!-- Сюда будем выводить превью -->
+                <img id="imagePreview" class="img-fluid rounded d-none shadow-sm" style="max-height: 300px;" />
+
+                <input type="file" id="imageInput" class="d-none" accept="image/*" onchange="handleImageSelect(this)">
+            </div>
         </div>
 
         <!-- Options Grid -->
@@ -154,6 +174,11 @@
                              style="pointer-events: none; z-index: 10; font-size: 0.9rem;">
                             <i class="bi bi-check-lg me-1"></i>Скопировано!
                         </div>
+
+                        <!-- Кнопка скачивания -->
+                        <button class="btn btn-sm btn-dark w-100 mb-3" onclick="downloadQrImage()">
+                            <i class="bi bi-download me-2"></i>Скачать PNG
+                        </button>
                     </div>
                 </div>
 
@@ -171,20 +196,18 @@
 
 <script>
     let currentMode = 'file';
+    let selectedImageBlob = null;
     const CHUNK_SIZE = 4 * 1024 * 1024;
 
     function switchTab(mode) {
         currentMode = mode;
-        document.getElementById('tab-file').className = mode === 'file' ? 'nav-link active' : 'nav-link';
-        document.getElementById('tab-text').className = mode === 'text' ? 'nav-link active' : 'nav-link';
-
-        if(mode === 'file') {
-            document.getElementById('pane-file').classList.remove('d-none');
-            document.getElementById('pane-text').classList.add('d-none');
-        } else {
-            document.getElementById('pane-file').classList.add('d-none');
-            document.getElementById('pane-text').classList.remove('d-none');
-        }
+        // Сбрасываем активные классы
+        ['file', 'text', 'image'].forEach(t => {
+            document.getElementById(`tab-${t}`).className = (mode === t) ? 'nav-link active' : 'nav-link';
+            const pane = document.getElementById(`pane-${t}`);
+            if(mode === t) pane.classList.remove('d-none');
+            else pane.classList.add('d-none');
+        });
     }
 
     function copyLink() {
@@ -232,7 +255,14 @@
                 blobToSend = fileInput.files[0];
                 filename = blobToSend.name;
                 type = 'file';
-            } else {
+            }
+            else if (currentMode === 'image') {
+                if (!selectedImageBlob) { alert("Выберите или вставьте картинку!"); return; }
+                blobToSend = selectedImageBlob;
+                filename = selectedImageBlob.name || 'image.png'; // Если из буфера, имя может быть пустым
+                type = 'image';
+            }
+            else {
                 const textVal = document.getElementById('textInput').value;
                 if (!textVal) { alert("Введите текст!"); return; }
                 blobToSend = new Blob([textVal], { type: 'text/plain' });
@@ -384,6 +414,35 @@
         if(txt) txt.innerText = percent + '%';
     }
 
+    function downloadQrImage() {
+        const container = document.getElementById("qrcode");
+        // Библиотека qrcodejs создает либо canvas, либо img (в старых браузерах).
+        // Чаще всего это canvas.
+        const canvas = container.querySelector("canvas");
+        const img = container.querySelector("img");
+
+        let url = null;
+
+        if (canvas) {
+            // Конвертируем Canvas в DataURL (base64 картинка)
+            url = canvas.toDataURL("image/png");
+        } else if (img) {
+            // Если вдруг библиотека отрендерила IMG тег
+            url = img.src;
+        } else {
+            alert("QR-код еще не сгенерирован.");
+            return;
+        }
+
+        // Создаем временную ссылку для скачивания
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "secret-qr.png"; // Имя файла при скачивании
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     // ... toBase64 и deriveIv остаются без изменений ...
     function deriveIv(baseIv, counter) {
         const iv = new Uint8Array(baseIv);
@@ -456,7 +515,7 @@
             btn.classList.add('btn-outline-success');
         }, 2000);
     }
-        async function copyQrImage() {
+    async function copyQrImage() {
         const container = document.getElementById("qrcode");
         // Библиотека генерирует canvas. Найдем его.
         const canvas = container.querySelector("canvas");
@@ -535,4 +594,45 @@
         if(bar) bar.style.width = percent + '%';
         if(txt) txt.innerText = percent + '%';
     }
+
+        function handleImageSelect(input) {
+        if (input.files && input.files[0]) {
+            processImageFile(input.files[0]);
+        }
+    }
+
+    // Общая функция обработки файла картинки (для Input и Paste)
+    function processImageFile(file) {
+        if (!file.type.startsWith('image/')) {
+            alert("Это не картинка!");
+            return;
+        }
+        selectedImageBlob = file;
+
+        // Показываем превью
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('imagePreviewPlaceholder').classList.add('d-none');
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            img.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Обработчик PASTE (Ctrl+V)
+    document.addEventListener('paste', function(e) {
+        if (currentMode !== 'image') return;
+
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+            const item = items[index];
+            if (item.kind === 'file' && item.type.startsWith('image/')) {
+                const blob = item.getAsFile();
+                processImageFile(blob);
+                e.preventDefault(); // Чтобы не вставилось в другие поля
+                break;
+            }
+        }
+    });
 </script>
