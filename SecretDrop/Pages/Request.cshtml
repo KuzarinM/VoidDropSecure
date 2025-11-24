@@ -1,0 +1,518 @@
+﻿@page "{id?}"
+@model RequestModel
+@{
+    ViewData["Title"] = Model.IsSenderMode ? "Отправка файла" : "Запрос файла";
+}
+
+<div class="container" style="max-width: 650px;">
+    
+    <!-- === РЕЖИМ 1: ПОЛУЧАТЕЛЬ (тот, кто ждет файл) === -->
+    @if (!Model.IsSenderMode)
+    {
+        <div id="creator-step-1" class="main-card text-center animate-fade-in">
+            <div class="mb-4">
+                <div class="d-inline-block p-4 rounded-circle bg-primary bg-opacity-10">
+                    <i class="bi bi-broadcast text-primary" style="font-size: 3rem;"></i>
+                </div>
+            </div>
+            <h2 class="fw-bold mb-3">Прием файлов</h2>
+            <p class="text-muted mb-4">
+                Сгенерируйте одноразовую ссылку-шлюз. Отправьте её собеседнику, 
+                и он сможет передать вам файл, текст или фото через защищенный RSA-туннель.
+            </p>
+            <button onclick="createRequest()" id="btnCreate" class="btn btn-primary btn-lg px-5 py-3 shadow-lg">
+                <i class="bi bi-link-45deg me-2"></i>Создать шлюз
+            </button>
+        </div>
+
+        <div id="creator-step-2" class="main-card text-center d-none animate-fade-in">
+            <div class="spinner-grow text-success mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h4 class="mb-3 animate-pulse">Ожидание подключения...</h4>
+            
+            <div class="input-group mb-3">
+                <input type="text" id="requestLink" class="form-control text-center font-monospace text-primary fw-bold" readonly>
+                <button class="btn btn-outline-success" onclick="copyLink()">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+            </div>
+
+            <div class="d-flex justify-content-center my-4">
+                <div class="p-3 bg-white rounded position-relative">
+                     <div id="qrcode"></div>
+                </div>
+            </div>
+             <button class="btn btn-sm btn-dark mb-4" onclick="downloadQrImage()">
+                <i class="bi bi-download me-2"></i>Скачать QR
+            </button>
+
+            <div class="alert alert-info bg-opacity-10 border-0 small">
+                <i class="bi bi-info-circle me-2"></i>Не закрывайте эту вкладку. Как только отправитель закончит передачу, файл откроется автоматически.
+            </div>
+        </div>
+    }
+
+    <!-- === РЕЖИМ 2: ОТПРАВИТЕЛЬ (тот, кто перешел по ссылке) === -->
+    @if (Model.IsSenderMode)
+    {
+        <input type="hidden" id="receiverPub" value="@Model.ReceiverPublicKey" />
+        <input type="hidden" id="sessionId" value="@Model.SessionId" />
+
+        <div id="sender-ui" class="main-card">
+            <div class="text-center mb-4">
+                <div class="badge bg-success bg-opacity-10 text-success mb-2 px-3 py-2 rounded-pill">
+                    <i class="bi bi-shield-lock-fill me-1"></i> E2E Encrypted Tunnel
+                </div>
+                <h3>Отправка данных</h3>
+            </div>
+
+            <!-- TABS -->
+            <ul class="nav nav-pills nav-fill mb-4">
+                <li class="nav-item"><button class="nav-link active" id="tab-file" onclick="switchTab('file')"><i class="bi bi-file-earmark me-2"></i>Файл</button></li>
+                <li class="nav-item ms-1"><button class="nav-link" id="tab-text" onclick="switchTab('text')"><i class="bi bi-chat-text me-2"></i>Текст</button></li>
+                <li class="nav-item ms-1"><button class="nav-link" id="tab-image" onclick="switchTab('image')"><i class="bi bi-card-image me-2"></i>Фото</button></li>
+            </ul>
+
+            <!-- PANE: FILE -->
+            <div id="pane-file" class="mb-4">
+                <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-upload display-6 mb-2 text-secondary"></i>
+                    <h5 class="fw-normal">Нажмите для выбора</h5>
+                    <p id="fileNameDisplay" class="text-muted small mb-0">Файлы до 5 ГБ</p>
+                    <input type="file" id="fileInput" class="d-none" onchange="updateFileName(this)">
+                </div>
+            </div>
+
+            <!-- PANE: TEXT -->
+            <div id="pane-text" class="mb-4 d-none">
+                <textarea id="textInput" class="form-control font-monospace" rows="5" placeholder="Введите секретное сообщение..."></textarea>
+            </div>
+
+            <!-- PANE: IMAGE -->
+            <div id="pane-image" class="mb-4 d-none">
+                <div class="file-drop-zone" id="imageDropZone" onclick="document.getElementById('imageInput').click()">
+                     <div id="imagePreviewPlaceholder">
+                        <i class="bi bi-images display-6 mb-2 text-secondary"></i>
+                        <p class="mb-0">Нажмите или <b>Ctrl+V</b></p>
+                    </div>
+                    <img id="imagePreview" class="img-fluid rounded d-none shadow-sm" style="max-height: 250px;" />
+                    <input type="file" id="imageInput" class="d-none" accept="image/*" onchange="handleImageSelect(this)">
+                </div>
+            </div>
+
+            <!-- OPTIONS: PASSWORD ONLY (TTL/LIMIT disabled in Request Mode) -->
+            <div class="mb-4 pt-3 border-top border-secondary border-opacity-25">
+                 <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="usePassword" onchange="togglePassword(this)">
+                    <label class="form-check-label text-muted small fw-bold text-uppercase" for="usePassword">Добавить пароль</label>
+                </div>
+                <div id="passwordBlock" class="d-none collapse show">
+                    <input type="password" id="senderPassword" class="form-control font-monospace" placeholder="Придумайте пароль..." autocomplete="new-password">
+                    <small class="text-warning" style="font-size: 0.75rem;">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        Передайте пароль получателю через другой канал связи!
+                    </small>
+                </div>
+            </div>
+
+            <button onclick="startReverseUpload()" id="btnSend" class="btn btn-primary w-100 py-3">
+                <i class="bi bi-send-fill me-2"></i>Зашифровать и Отправить
+            </button>
+
+            <!-- PROGRESS -->
+            <div id="progressArea" class="mt-4 d-none">
+                <div class="d-flex justify-content-between small mb-1">
+                    <span class="text-muted">Отправка...</span>
+                    <span id="progressText" class="text-primary">0%</span>
+                </div>
+                <div class="progress">
+                    <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sender-success" class="main-card text-center d-none animate-fade-in">
+            <div class="mb-4 text-success">
+                <i class="bi bi-check-circle-fill" style="font-size: 5rem;"></i>
+            </div>
+            <h2 class="fw-bold text-white mb-3">Успешно!</h2>
+            <p class="text-muted mb-4">Данные зашифрованы и переданы получателю.<br>Сессия закрыта.</p>
+            <a href="/" class="btn btn-outline-light">Отправить что-то еще</a>
+        </div>
+    }
+</div>
+
+<script>
+    // === ОБЩИЕ ПЕРЕМЕННЫЕ ===
+    const CHUNK_SIZE = 4 * 1024 * 1024;
+    let currentMode = 'file';
+    let selectedImageBlob = null;
+    let privateKeyObj = null; // Только для Создателя
+
+    // ==========================================
+    // ЛОГИКА ПОЛУЧАТЕЛЯ (CREATOR)
+    // ==========================================
+    async function createRequest() {
+        const btn = document.getElementById('btnCreate');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Генерация ключей...';
+
+        try {
+            // 1. RSA Key Pair
+            const keyPair = await window.crypto.subtle.generateKey(
+                { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+                true, ["encrypt", "decrypt"]
+            );
+            privateKeyObj = keyPair.privateKey; // Храним в RAM
+
+            // 2. Export Public Key
+            const pubJwk = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
+            
+            // 3. Create Session
+            const resp = await fetch('?handler=CreateSession', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(JSON.stringify(pubJwk))
+            });
+            const { id } = await resp.json();
+
+            // 4. UI
+            document.getElementById('creator-step-1').classList.add('d-none');
+            document.getElementById('creator-step-2').classList.remove('d-none');
+            const link = `${window.location.origin}/request/${id}`;
+            document.getElementById('requestLink').value = link;
+            
+            new QRCode(document.getElementById("qrcode"), {
+                text: link, width: 160, height: 160,
+                colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+            });
+
+            // 5. Start Polling
+            pollStatus(id);
+
+        } catch (e) {
+            alert("Ошибка: " + e.message);
+            btn.disabled = false;
+        }
+    }
+
+    async function pollStatus(sessionId) {
+        const interval = setInterval(async () => {
+            try {
+                const resp = await fetch(`?handler=Check&id=${sessionId}`);
+                if (resp.status === 200) {
+                    clearInterval(interval);
+                    const data = await resp.json();
+                    finishReceive(data);
+                } else if (resp.status === 404) {
+                    clearInterval(interval);
+                    alert("Сессия истекла или была удалена.");
+                    location.reload();
+                }
+            } catch (e) { console.error(e); }
+        }, 2000);
+    }
+
+    async function finishReceive(data) {
+        // Получатель получил "Посылку"
+        document.getElementById('creator-step-2').innerHTML = 
+            `<h3 class="mt-5"><span class="spinner-border text-primary"></span> Дешифровка ключа...</h3>`;
+
+        try {
+            // 1. Расшифровываем переданный AES-ключ своим RSA-ключом
+            const encKeyBytes = fromBase64(data.encryptedKey);
+            const rawOuterKey = await window.crypto.subtle.decrypt(
+                { name: "RSA-OAEP" }, privateKeyObj, encKeyBytes
+            );
+
+            // 2. Импортируем его как JWK, чтобы получить параметр k (ключ в base64url)
+            const outerKeyObj = await window.crypto.subtle.exportKey("jwk", 
+                await window.crypto.subtle.importKey("raw", rawOuterKey, "AES-GCM", true, ["encrypt", "decrypt"])
+            );
+
+            // 3. Переходим на страницу просмотра
+            // В хеш передаем расшифрованный ключ. 
+            // View.cshtml сама разберется: если есть пароль, она его спросит и использует этот ключ как "OuterKey".
+            // Если пароля нет, она использует его как MasterKey.
+            window.location.href = `/view/${data.fileId}#${outerKeyObj.k}`;
+
+        } catch (e) {
+            alert("Ошибка криптографии: " + e.message);
+            location.reload();
+        }
+    }
+
+
+    // ==========================================
+    // ЛОГИКА ОТПРАВИТЕЛЯ (SENDER)
+    // ==========================================
+    
+    // UI Helpers
+    function switchTab(mode) {
+        currentMode = mode;
+        ['file', 'text', 'image'].forEach(t => {
+            document.getElementById(`tab-${t}`).className = (mode === t) ? 'nav-link active' : 'nav-link';
+            const pane = document.getElementById(`pane-${t}`);
+            pane.classList.toggle('d-none', mode !== t);
+        });
+    }
+
+    function togglePassword(chk) {
+        const block = document.getElementById('passwordBlock');
+        block.classList.toggle('d-none', !chk.checked);
+        if(chk.checked) setTimeout(() => document.getElementById('senderPassword').focus(), 50);
+        else document.getElementById('senderPassword').value = '';
+    }
+
+    function updateFileName(input) {
+        if (input.files[0]) {
+            const d = document.getElementById('fileNameDisplay');
+            d.innerText = input.files[0].name;
+            d.classList.add('text-primary', 'fw-bold');
+        }
+    }
+
+    function handleImageSelect(input) {
+        if (input.files && input.files[0]) processImageFile(input.files[0]);
+    }
+
+    function processImageFile(file) {
+        if (!file.type.startsWith('image/')) { alert("Только изображения!"); return; }
+        selectedImageBlob = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('imagePreviewPlaceholder').classList.add('d-none');
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            img.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Paste Support
+    document.addEventListener('paste', function(e) {
+        if (currentMode !== 'image') return;
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let i in items) {
+            if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+                processImageFile(items[i].getAsFile());
+                e.preventDefault();
+                break;
+            }
+        }
+    });
+
+    // --- MAIN SEND LOGIC ---
+    async function startReverseUpload() {
+        const btn = document.getElementById('btnSend');
+        const progressBar = document.getElementById('progressBar');
+        const progressArea = document.getElementById('progressArea');
+        
+        let blobToSend = null;
+        let filename = 'secret';
+        let type = 'file';
+
+        // 1. Prepare Data
+        if (currentMode === 'file') {
+            const fi = document.getElementById('fileInput');
+            if (!fi.files[0]) { alert("Выберите файл"); return; }
+            blobToSend = fi.files[0];
+            filename = blobToSend.name;
+        } else if (currentMode === 'image') {
+            if (!selectedImageBlob) { alert("Нет картинки"); return; }
+            blobToSend = selectedImageBlob;
+            filename = "image.png";
+            type = 'image';
+        } else {
+            const txt = document.getElementById('textInput').value;
+            if (!txt) { alert("Введите текст"); return; }
+            blobToSend = new Blob([txt], { type: 'text/plain' });
+            filename = 'message.txt';
+            type = 'message';
+        }
+
+        const usePass = document.getElementById('usePassword').checked;
+        const password = document.getElementById('senderPassword').value;
+        if (usePass && !password) { alert("Введите пароль"); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
+        progressArea.classList.remove('d-none');
+
+        try {
+            // 2. Encryption Setup
+            // A. Генерируем Master Key для файла
+            const fileKey = await window.crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+            );
+            const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
+
+            // B. Подготовка "Матрешки" (Wrapped Key) для Server Init
+            let serverWrappedKey = null; // То, что пойдет в Init
+            let passwordSalt = null;
+            let keyToTransport = null;   // То, что пойдет через RSA получателю
+
+            if (usePass) {
+                // --- СЦЕНАРИЙ С ПАРОЛЕМ ---
+                // Мы должны создать структуру, которую ожидает View.cshtml:
+                // UrlKey -> [ OuterIV + Enc( PassKey -> [ InnerIV + Enc(MasterKey) ] ) ]
+                
+                // 1. Генерируем фиктивный "URL Key" (он же Outer Key), который передадим через RSA
+                const outerKey = await window.crypto.subtle.generateKey(
+                    { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+                );
+                
+                // 2. Ключ из пароля
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                passwordSalt = toBase64(salt);
+                const passKey = await deriveKeyFromPassword(password, salt);
+
+                // 3. Шифруем MasterKey Паролем (Inner Layer)
+                const rawFileKey = await window.crypto.subtle.exportKey("raw", fileKey);
+                const innerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                const innerEnc = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: innerIv }, passKey, rawFileKey
+                );
+                // Собираем Inner Blob
+                const innerBlob = new Uint8Array(innerIv.length + innerEnc.byteLength);
+                innerBlob.set(innerIv);
+                innerBlob.set(new Uint8Array(innerEnc), 12);
+
+                // 4. Шифруем InnerBlob "URL-ключом" (Outer Layer)
+                const outerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                const outerEnc = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: outerIv }, outerKey, innerBlob
+                );
+                // Собираем Full Blob
+                const fullBlob = new Uint8Array(outerIv.length + outerEnc.byteLength);
+                fullBlob.set(outerIv);
+                fullBlob.set(new Uint8Array(outerEnc), 12);
+
+                serverWrappedKey = toBase64(fullBlob); // Это храним на сервере
+                
+                // Через RSA мы передадим RAW байты ключа outerKey
+                keyToTransport = await window.crypto.subtle.exportKey("raw", outerKey);
+
+            } else {
+                // --- БЕЗ ПАРОЛЯ ---
+                // ServerWrappedKey = null
+                // Через RSA передаем RAW байты самого MasterKey
+                keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey);
+            }
+
+            // 3. Init Upload (используем API Index страницы)
+            const meta = JSON.stringify({
+                filename: filename,
+                size: blobToSend.size,
+                iv: toBase64(fileIvBase),
+                type: type
+            });
+
+            const initResp = await fetch('/?handler=Init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meta: meta,
+                    ttl: 60, // Фиксируем 1 час для обратной связи
+                    limit: 2, // Лимит 2 (на всякий случай)
+                    passwordSalt: passwordSalt,
+                    wrappedKey: serverWrappedKey 
+                })
+            });
+            if (!initResp.ok) throw new Error("Init error");
+            const { id: fileId } = await initResp.json();
+
+            // 4. Upload Chunks
+            let offset = 0;
+            let chunkIndex = 0;
+            while (offset < blobToSend.size) {
+                const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
+                const chunkBuffer = await chunkBlob.arrayBuffer();
+                const chunkIv = deriveIv(fileIvBase, chunkIndex);
+                const encryptedChunk = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: chunkIv }, fileKey, chunkBuffer
+                );
+                await fetch(`/?handler=Chunk&id=${fileId}`, { method: 'POST', body: encryptedChunk });
+                
+                offset += CHUNK_SIZE;
+                chunkIndex++;
+                const p = Math.min(100, Math.round((offset / blobToSend.size) * 100));
+                progressBar.style.width = p + "%";
+                document.getElementById('progressText').innerText = p + "%";
+            }
+
+            // 5. Encrypt Key for Receiver (RSA)
+            const receiverPubJson = document.getElementById('receiverPub').value;
+            const rsaPubKey = await window.crypto.subtle.importKey(
+                "jwk", JSON.parse(receiverPubJson), 
+                { name: "RSA-OAEP", hash: "SHA-256" }, 
+                false, ["encrypt"]
+            );
+            
+            // Шифруем keyToTransport (это или MasterKey, или OuterKey)
+            const encryptedTransportKey = await window.crypto.subtle.encrypt(
+                { name: "RSA-OAEP" }, rsaPubKey, keyToTransport
+            );
+
+            // 6. Complete Session
+            const sessionId = document.getElementById('sessionId').value;
+            await fetch('?handler=CompleteSession', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    fileId: fileId,
+                    encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)),
+                    metaJson: meta // Дублируем мету для удобства (не обязательно)
+                })
+            });
+
+            // 7. Success UI
+            document.getElementById('sender-ui').classList.add('d-none');
+            document.getElementById('sender-success').classList.remove('d-none');
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+            btn.disabled = false;
+        }
+    }
+
+    // --- Helpers (Common) ---
+    function copyLink() {
+        const copyText = document.getElementById("requestLink");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+    }
+    
+    function downloadQrImage() {
+        const c = document.getElementById("qrcode").querySelector("canvas");
+        if(c) {
+            const a = document.createElement("a");
+            a.href = c.toDataURL("image/png");
+            a.download = "void-drop-qr.png";
+            a.click();
+        }
+    }
+    
+    function toBase64(u8) { return btoa(String.fromCharCode.apply(null, u8)); }
+    function fromBase64(str) { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+    
+    function deriveIv(baseIv, counter) {
+        const iv = new Uint8Array(baseIv);
+        const view = new DataView(iv.buffer);
+        const currentLast4 = view.getUint32(8, true);
+        view.setUint32(8, currentLast4 ^ counter, true);
+        return iv;
+    }
+
+    async function deriveKeyFromPassword(password, salt) {
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey(
+            "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+        );
+        return await window.crypto.subtle.deriveKey(
+            { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+            keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+        );
+    }
+</script> 
