@@ -1,195 +1,54 @@
-:root {
-    --bs-body-bg: #020617; /* Еще более глубокий черный/синий */
-    --bs-body-color: #e2e8f0;
-    /* CYBER GREEN PALETTE */
-    --primary-color: #10b981; /* Основной зеленый */
-    --primary-hover: #059669; /* Темный зеленый при наведении */
-    --primary-glow: rgba(16, 185, 129, 0.5);
-    --card-bg: #0f172a;
-    --glass-bg: rgba(15, 23, 42, 0.7);
-    --border-color: #1e293b;
-}
+/* Импортируем шрифты, используемые в референсе */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
 
 body {
+    /* Глубокий черный фон (Zinc-950 аналог) */
+    background-color: #09090b;
+    color: #f4f4f5; /* Zinc-100 */
     font-family: 'Inter', sans-serif;
-    /* Градиент от темно-зеленого в углу к черному */
-    background: radial-gradient(circle at top left, #064e3b, #020617);
+    /* Техно-сетка на фоне из style.css Vue проекта */
+    background-image: linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
     min-height: 100vh;
 }
 
-/* Стеклянный эффект */
-.glass-effect {
-    background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+/* Цвет выделения текста */
+::selection {
+    background-color: rgba(16, 185, 129, 0.3); /* emerald-500/30 */
+    color: #a7f3d0; /* emerald-200 */
 }
 
-/* Карточка */
-.main-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    padding: 2rem;
-    transition: transform 0.2s;
+/* Стили для скроллбара */
+::-webkit-scrollbar {
+    width: 8px;
 }
 
-.nav-pills .nav-link.active {
-    background-color: var(--primary-color);
-    color: #020617; /* Черный текст на зеленом читается лучше */
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+::-webkit-scrollbar-track {
+    background: #18181b;
 }
 
-.nav-pills .nav-link:hover:not(.active) {
-    color: var(--primary-color);
-    background-color: rgba(16, 185, 129, 0.05);
+::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
 }
 
-.file-drop-zone {
-    /* Структура */
-    display: block;
-    width: 100%;
-    border: 2px dashed var(--border-color); /* Используем переменную границы */
-    border-radius: 12px;
-    padding: 3rem 1rem; /* Большие отступы внутри, чтобы было удобно кидать */
-    text-align: center;
-    /* Фон и курсор */
-    background: rgba(255, 255, 255, 0.02);
-    cursor: pointer;
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-    /* Эффект при наведении или перетаскивании файла */
-    .file-drop-zone:hover, .file-drop-zone.dragover {
-        border-color: var(--primary-color); /* Ярко-зеленая рамка */
-        background: rgba(16, 185, 129, 0.05); /* Легкий зеленый фон */
-        transform: translateY(-2px); /* Чуть приподнимается */
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    ::-webkit-scrollbar-thumb:hover {
+        background: #10b981;
     }
 
-    /* Стили иконки облака внутри */
-    .file-drop-zone i {
-        font-size: 3.5rem;
-        color: #475569; /* Серый цвет в покое */
-        margin-bottom: 1rem;
-        display: block;
-        transition: color 0.3s;
-    }
-
-    /* Иконка зеленеет при наведении */
-    .file-drop-zone:hover i, .file-drop-zone.dragover i {
-        color: var(--primary-color);
-    }
-
-    /* Текст внутри зоны */
-    .file-drop-zone h5 {
-        font-weight: 400;
-        color: #e2e8f0;
-    }
-
-/* Инпуты при фокусе */
-.form-control:focus, .form-select:focus {
-    background-color: #0f172a;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-    color: white;
+/* Утилиты для анимаций, если Tailwind CDN их не подхватит */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
 }
 
-/* Кнопки */
-.btn-primary {
-    background-color: var(--primary-color);
-    color: #020617; /* Черный текст на зеленом фоне - это стиль */
-    border: none;
-}
-
-    .btn-primary:hover {
-        background-color: var(--primary-hover);
-        color: white;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
     }
 
-/* Прогресс бар */
-.progress-bar {
-    background: linear-gradient(90deg, #10b981, #34d399);
-}
-
-/* Результат (Зеленая плашка) */
-.result-box {
-    background: rgba(6, 78, 59, 0.3); /* Темно-зеленый полупрозрачный */
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.link-input {
-    color: var(--primary-color) !important;
-    border-color: rgba(16, 185, 129, 0.3) !important;
-}
-
-/* Анимация пульсации */
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
-
-    70% {
-        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-    }
-}
-
-/* Анимация ядра логотипа (меняем цвета на зеленые) */
-@keyframes corePulse {
-    0% {
-        fill: #e2e8f0;
-        filter: drop-shadow(0 0 2px rgba(255,255,255,0.3));
-    }
-
-    50% {
-        fill: #34d399;
-        filter: drop-shadow(0 0 10px #10b981);
-    }
-    /* Light green to emerald */
-    100% {
-        fill: #e2e8f0;
-        filter: drop-shadow(0 0 2px rgba(255,255,255,0.3));
-    }
-}
-
-/* Стили для иконок слева от полей */
-.input-group-text {
-    background-color: #0f172a; /* Цвет фона такой же, как у инпутов */
-
-    border-right: none; /* Убираем границу между иконкой и полем */
-    color: #64748b; /* Цвет иконки в покое (темно-серый) */
-    transition: all 0.3s ease;
-}
-
-/* Исправляем сам инпут, чтобы у него слева не было границы (сливался с иконкой) */
-.input-group .form-select,
-.input-group .form-control {
-    border-left: none;
-}
-
-    .input-group .form-select:focus,
-    .input-group .form-control:focus {
-        box-shadow: none; /* Убираем стандартную тень, сделаем свою через группу */
-    }
-
-/* ЭФФЕКТ ФОКУСА: Когда поле активно, подсвечиваем всю группу и иконку */
-.input-group:focus-within .input-group-text {
-    border-color: var(--primary-color);
-    color: var(--primary-color); /* Иконка становится зеленой */
-    box-shadow: -4px 0 15px -5px rgba(16, 185, 129, 0.2); /* Легкое свечение слева */
-}
-
-.input-group:focus-within .form-select,
-.input-group:focus-within .form-control {
-    border-color: var(--primary-color);
-}
-
-.logo-core-pulse {
-    animation: corePulse 3s infinite ease-in-out;
 }

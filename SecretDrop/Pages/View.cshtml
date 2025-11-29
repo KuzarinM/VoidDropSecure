@@ -1,184 +1,149 @@
 ﻿@page "{id}"
 @model ViewModel
 @{
-    ViewData["Title"] = "Получение данных";
+    ViewData["Title"] = "Incoming Data";
 }
-
 <script src="https://cdn.jsdelivr.net/npm/web-streams-polyfill@3/dist/polyfill.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
 
-<div class="container" style="max-width: 700px;">
-
-    <!-- Логотип по центру для получателя -->
-    <div class="text-center mb-5">
-        <i class="bi bi-shield-lock-fill text-primary" style="font-size: 4rem;"></i>
+<div class="max-w-2xl mx-auto pt-10 animate-fade-in">
+    <!-- Lock Icon -->
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-zinc-950 border border-zinc-800 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+            <i class="bi bi-shield-lock-fill text-4xl animate-pulse-slow"></i>
+        </div>
     </div>
 
-    <div class="main-card">
+    <div class="bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
+
         <div class="text-center">
-            <h2 class="fw-bold">Вам отправлен секрет</h2>
-            <p class="text-muted mb-4">Данные зашифрованы End-to-End. Сервер не имеет доступа к содержимому.</p>
+            <h2 class="text-xl font-mono font-bold text-zinc-100 mb-2 tracking-widest uppercase">Encrypted_Payload_Detected</h2>
+            <p class="text-zinc-500 text-xs font-mono mb-8">End-to-End Encrypted. Server has zero knowledge.</p>
 
-            <!-- LOCKED STATE -->
-            <div id="lockedState" class="py-3">
-                <div class="alert alert-info d-inline-block bg-opacity-10 border-0 text-info mb-4">
-                    <i class="bi bi-eye-slash me-2"></i> Ссылка одноразовая (или ограничена)
+            <div id="lockedState" class="transition-opacity duration-500">
+                <div class="inline-block bg-sky-900/20 text-sky-400 text-[10px] font-mono px-3 py-1 rounded border border-sky-500/20 mb-8">
+                    <i class="bi bi-eye-slash mr-1"></i> EPHEMERAL ACCESS ONLY
                 </div>
-                <br>
-                <button onclick="processSecret()" id="btnReveal" class="btn btn-primary btn-lg px-5 py-3 btn-pulse shadow-lg">
-                    <i class="bi bi-unlock-fill me-2"></i>Расшифровать и Открыть
+
+                <button onclick="processSecret()" id="btnReveal" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-mono font-bold tracking-wider text-sm rounded transition shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] group">
+                    <i class="bi bi-unlock-fill mr-2 group-hover:scale-110 inline-block transition"></i> DECRYPT & OPEN
                 </button>
-                <div id="status" class="mt-3 text-muted small font-monospace">Ожидание действия...</div>
+
+                <div id="status" class="mt-4 text-[10px] font-mono text-zinc-600">AWAITING_USER_INTERACTION...</div>
             </div>
         </div>
 
-        <!-- TEXT MESSAGE VIEW -->
-        <div id="messageArea" class="d-none mt-4 animate-fade-in">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-uppercase text-muted small fw-bold">Содержимое:</span>
-                <button class="btn btn-sm btn-outline-light" onclick="copyMessage()">
-                    <i class="bi bi-clipboard me-1"></i> Копировать
-                </button>
+        <!-- Text Message -->
+        <div id="messageArea" class="hidden mt-6 animate-fade-in">
+            <div class="flex justify-between items-center mb-2 border-b border-zinc-800 pb-2">
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Decrypted_Message</span>
+                <button onclick="copyMessage()" class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ COPY ]</button>
             </div>
-            <div class="p-3 bg-dark rounded border border-secondary font-monospace text-break"
-                 style="min-height: 100px; white-space: pre-wrap;"
-                 id="messageContent"></div>
-
-            <div class="text-center mt-4 pt-3 border-top border-secondary">
-                <p class="text-success mb-3"><i class="bi bi-check-circle me-1"></i> Расшифровано успешно</p>
-                <a href="/" class="btn btn-outline-secondary">Отправить ответный секрет</a>
-            </div>
+            <div class="p-4 bg-zinc-950 border border-zinc-800 rounded font-mono text-sm text-emerald-100 break-words whitespace-pre-wrap shadow-inner min-h-[100px]" id="messageContent"></div>
         </div>
 
-        <!-- IMAGE VIEW AREA -->
-        <div id="imageArea" class="d-none mt-4 animate-fade-in text-center">
-            <div class="mb-3 d-flex justify-content-between align-items-center">
-                <span class="text-muted small text-uppercase fw-bold">Изображение</span>
-                <a id="btnDownloadImage" href="#" download="secret-image.png" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-download me-1"></i> Скачать оригинал
-                </a>
+        <!-- Image -->
+        <div id="imageArea" class="hidden mt-6 animate-fade-in text-center">
+            <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2">
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Visual_Data</span>
+                <a id="btnDownloadImage" href="#" download class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ DOWNLOAD ]</a>
             </div>
-            <div class="p-2 bg-dark rounded border border-secondary d-inline-block position-relative">
-                <!-- Спиннер загрузки картинки -->
-                <div id="imgSpinner" class="position-absolute top-50 start-50 translate-middle text-muted">
-                    <div class="spinner-border spinner-border-sm"></div>
+            <div class="relative inline-block">
+                <div id="imgSpinner" class="absolute inset-0 flex items-center justify-center bg-zinc-950 text-zinc-600 z-10">
+                    <div class="animate-spin h-6 w-6 border-2 border-zinc-700 border-t-emerald-500 rounded-full"></div>
                 </div>
-                <img id="secretImageDisplay" class="img-fluid rounded" style="max-height: 80vh; min-height: 100px;" onload="document.getElementById('imgSpinner').classList.add('d-none')">
-            </div>
-            <div class="text-center mt-4 pt-3 border-top border-secondary">
-                <p class="text-success mb-3"><i class="bi bi-check-circle me-1"></i> Расшифровано успешно</p>
-                <a href="/" class="btn btn-outline-secondary">Отправить ответ</a>
-            </div>
-        </div>
-
-        <!-- FILE DOWNLOAD VIEW -->
-        <div id="fileSuccessArea" class="d-none mt-4 text-center animate-fade-in">
-            <div class="py-4">
-                <i class="bi bi-file-earmark-check-fill text-success" style="font-size: 3rem;"></i>
-                <h4 class="mt-3 text-white">Скачивание началось</h4>
-                <p class="text-muted">Файл: <span id="dlFilename" class="text-primary font-monospace">unknown</span></p>
-            </div>
-            <div class="alert alert-warning small border-0 bg-opacity-10">
-                <i class="bi bi-exclamation-triangle me-1"></i> Не закрывайте страницу до завершения загрузки. Расшифровка идет в реальном времени.
-            </div>
-            <a href="/" class="btn btn-outline-secondary mt-3">Создать новый секрет</a>
-        </div>
-
-        <!-- ERROR AREA -->
-        <div id="errorArea" class="d-none mt-4">
-            <div class="alert alert-danger border-0 d-flex align-items-center">
-                <i class="bi bi-x-circle-fill fs-4 me-3"></i>
-                <div>
-                    <h5 class="alert-heading mb-1">Ошибка доступа</h5>
-                    <p class="mb-0 small" id="errorText">Секрет не найден, удален или истек срок его жизни.</p>
-                </div>
-            </div>
-            <div class="text-center mt-3">
-                <a href="/" class="btn btn-primary">На главную</a>
-            </div>
-        </div>
-
-        <!-- Password Prompt Overlay (Скрыт по умолчанию) -->
-        <div id="passwordPrompt" class="d-none animate-fade-in mb-4">
-            <div class="card border-warning bg-dark shadow-lg mx-auto" style="max-width: 400px;">
-                <div class="card-body text-center p-4">
-                    <i class="bi bi-shield-lock text-warning display-4 mb-3"></i>
-                    <h5 class="card-title text-white">Требуется пароль</h5>
-                    <p class="text-muted small">Отправитель защитил этот файл паролем.</p>
-
-                    <input type="password" id="receiverPassword" class="form-control text-center mb-3 font-monospace" placeholder="Введите пароль">
-
-                    <button onclick="decryptWithPassword()" class="btn btn-warning w-100 fw-bold">
-                        <i class="bi bi-key me-2"></i>Открыть доступ
-                    </button>
-                    <div id="passError" class="text-danger small mt-2 d-none">Неверный пароль</div>
+                <div class="p-1 bg-zinc-950 border border-zinc-800 rounded inline-block">
+                    <img id="secretImageDisplay" class="max-h-[70vh] rounded max-w-full" onload="document.getElementById('imgSpinner').classList.add('hidden')">
                 </div>
             </div>
         </div>
 
+        <!-- File Success -->
+        <div id="fileSuccessArea" class="hidden mt-8 text-center animate-fade-in py-4">
+            <i class="bi bi-file-earmark-check-fill text-6xl text-emerald-500 mb-6 block drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]"></i>
+            <h4 class="text-zinc-100 font-mono font-bold tracking-widest mb-2">STREAM_ESTABLISHED</h4>
+            <p class="text-zinc-500 text-xs font-mono mb-6">Target: <span id="dlFilename" class="text-emerald-400">...</span></p>
+            <div class="p-3 bg-amber-900/10 border border-amber-500/20 text-amber-500 text-[10px] font-mono rounded inline-block max-w-sm">
+                <i class="bi bi-cone-striped mr-1"></i> Do not close this window until download completes. Decryption happens on-the-fly.
+            </div>
+        </div>
+
+        <!-- Error -->
+        <div id="errorArea" class="hidden mt-6 p-4 bg-red-900/10 border border-red-500/30 rounded flex items-start gap-4 animate-pulse">
+            <i class="bi bi-x-circle-fill text-red-500 text-xl mt-1"></i>
+            <div>
+                <h5 class="text-red-400 font-mono text-sm font-bold tracking-widest">ACCESS_DENIED</h5>
+                <p class="text-red-500/70 text-xs font-mono mt-1" id="errorText">Secret missing or link expired.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PASSWORD OVERLAY (FIXED, HIGH Z-INDEX) -->
+    <div id="passwordPrompt" class="hidden fixed inset-0 bg-zinc-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-50 transition-all">
+        <div class="bg-zinc-900 border border-amber-500/30 p-8 rounded-lg shadow-2xl flex flex-col items-center max-w-sm w-full">
+            <div class="text-amber-500 mb-4"><i class="bi bi-shield-lock-fill text-5xl"></i></div>
+            <h5 class="text-zinc-100 font-mono text-sm mb-2 font-bold tracking-widest uppercase">Restricted_Access</h5>
+            <p class="text-zinc-500 text-xs font-mono mb-6 text-center">This payload is password protected.</p>
+
+            <input type="password" id="receiverPassword" class="bg-zinc-950 border border-zinc-700 text-emerald-400 text-center font-mono text-lg p-3 rounded w-full focus:border-amber-500 outline-none mb-4 placeholder:text-zinc-800 tracking-[0.2em] shadow-inner" placeholder="••••••" onkeydown="if(event.key === 'Enter') decryptWithPassword()">
+
+            <button onclick="decryptWithPassword()" class="w-full px-8 py-3 bg-amber-600 hover:bg-amber-500 text-black font-mono font-bold text-xs rounded transition shadow-[0_0_15px_rgba(245,158,11,0.3)] uppercase">
+                <i class="bi bi-key-fill mr-2"></i> Unlock_Payload
+            </button>
+
+            <div id="passError" class="text-red-500 text-[10px] font-mono mt-4 hidden text-center bg-red-900/20 px-2 py-1 rounded border border-red-500/20">
+                INVALID_CREDENTIALS
+            </div>
+        </div>
     </div>
 
 </div>
 
 <script>
-    // Глобальные переменные для хранения состояния
     let globalMeta = null;
     let globalId = null;
-
-    // Константы (должны совпадать с отправкой)
-    const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB
-    const TAG_LENGTH = 16;              // GCM Tag length
+    const CHUNK_SIZE = 4 * 1024 * 1024;
+    const TAG_LENGTH = 16;
     const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + TAG_LENGTH;
 
     async function processSecret() {
         globalId = window.location.pathname.split('/').pop();
         const urlHash = window.location.hash.substring(1);
 
-        // Если есть пароль, ключ ОБЯЗАН быть в ссылке. Если его нет - ссылка битая.
-        // Если пароля нет, ключ тоже в ссылке.
         if (!urlHash) {
-            document.getElementById('errorArea').classList.remove('d-none');
-            document.getElementById('errorText').innerText = "Ошибка: В ссылке отсутствует ключ шифрования. Возможно, ссылка скопирована не полностью.";
+            document.getElementById('errorArea').classList.remove('hidden');
+            document.getElementById('errorText').innerText = "CRITICAL: Decryption key missing from URL anchor.";
             return;
         }
 
         const btn = document.getElementById('btnReveal');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Загрузка...';
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> DOWNLOADING_METADATA...';
 
         try {
-            // 1. Получаем метаданные
             const metaResp = await fetch(`?handler=Meta&id=${globalId}`);
-            if (!metaResp.ok) throw new Error(metaResp.status === 404 ? "Файл не найден." : "Ошибка сервера");
+            if (!metaResp.ok) throw new Error(metaResp.status === 404 ? "FILE_NOT_FOUND" : "SERVER_ERROR");
             globalMeta = await metaResp.json();
 
-            // 2. Импортируем ключ из ссылки (URL Key)
-            // В режиме "Без пароля" это Master Key.
-            // В режиме "С паролем" это Внешний ключ "матрешки".
             const urlKey = await window.crypto.subtle.importKey(
                 "jwk", { k: urlHash, kty: "oct", alg: "A256GCM", ext: true },
                 { name: "AES-GCM" }, false, ["decrypt"]
             );
 
             if (globalMeta.hasPassword) {
-                // === ЕСТЬ ПАРОЛЬ ===
-                // Мы пока не можем начать скачивание, нужен ввод пароля.
-                // Но мы СОХРАНЯЕМ urlKey в глобальную переменную, он пригодится позже.
                 globalMeta.urlKeyObj = urlKey;
-
-                document.getElementById('lockedState').classList.add('d-none');
-                document.getElementById('passwordPrompt').classList.remove('d-none');
+                document.getElementById('lockedState').classList.add('hidden');
+                // Показываем модалку
+                document.getElementById('passwordPrompt').classList.remove('hidden');
                 document.getElementById('receiverPassword').focus();
             } else {
-                // === БЕЗ ПАРОЛЯ ===
-                // urlKey - это и есть Master Key
                 await startDownload(urlKey);
             }
-
         } catch (err) {
             console.error(err);
-            document.getElementById('lockedState').classList.add('d-none');
-            document.getElementById('errorArea').classList.remove('d-none');
+            document.getElementById('lockedState').classList.add('hidden');
+            document.getElementById('errorArea').classList.remove('hidden');
             document.getElementById('errorText').innerText = err.message;
         }
     }
@@ -189,290 +154,137 @@
         const btnPass = document.querySelector('#passwordPrompt button');
 
         if(!password) return;
-
-        errorDiv.classList.add('d-none');
+        errorDiv.classList.add('hidden');
         btnPass.disabled = true;
-        btnPass.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btnPass.innerHTML = '<span class="animate-spin">/</span> PROCESSING';
 
         try {
-            // 1. Получаем KEK из пароля
             const salt = fromBase64(globalMeta.passwordSalt);
             const passKey = await deriveKeyFromPassword(password, salt);
-
-            // 2. Разбираем "Матрешку"
             const fullBlob = fromBase64(globalMeta.wrappedKey);
 
-            // --- СЛОЙ 1 (Снимаем URL шифрование) ---
             const outerIv = fullBlob.slice(0, 12);
             const outerData = fullBlob.slice(12);
-
-            // urlKeyObj мы сохранили в processSecret
             const innerBlobBuffer = await window.crypto.subtle.decrypt(
                 { name: "AES-GCM", iv: outerIv }, globalMeta.urlKeyObj, outerData
             );
-            const innerBlob = new Uint8Array(innerBlobBuffer);
 
-            // --- СЛОЙ 2 (Снимаем Парольное шифрование) ---
+            const innerBlob = new Uint8Array(innerBlobBuffer);
             const innerIv = innerBlob.slice(0, 12);
             const innerData = innerBlob.slice(12);
-
             const rawFileKey = await window.crypto.subtle.decrypt(
                 { name: "AES-GCM", iv: innerIv }, passKey, innerData
             );
 
-            // Ура! Мы добрались до Master Key
             const fileKey = await window.crypto.subtle.importKey(
                 "raw", rawFileKey, "AES-GCM", false, ["decrypt"]
             );
 
-            // Скрываем окно пароля и качаем
-            document.getElementById('passwordPrompt').classList.add('d-none');
-            document.getElementById('lockedState').classList.remove('d-none');
-            document.getElementById('status').innerText = "Пароль верен. Скачивание...";
-
+            document.getElementById('passwordPrompt').classList.add('hidden');
+            document.getElementById('lockedState').classList.remove('hidden');
+            document.getElementById('status').innerText = "PASSWORD_ACCEPTED. INITIATING_STREAM...";
             await startDownload(fileKey);
 
         } catch (e) {
-            console.error("Decryption failed:", e);
-            errorDiv.innerText = "Неверный пароль (или ссылка повреждена).";
-            errorDiv.classList.remove('d-none');
+            console.error(e);
+            errorDiv.innerText = "ACCESS_DENIED: BAD PASSWORD";
+            errorDiv.classList.remove('hidden');
             btnPass.disabled = false;
-            btnPass.innerHTML = '<i class="bi bi-key me-2"></i>Открыть доступ';
+            btnPass.innerHTML = '<i class="bi bi-key-fill mr-2"></i> UNLOCK_PAYLOAD';
         }
     }
 
-    async function handleImageDecrypt(reader, key, ivBase, filename) {
-        let buffer = new Uint8Array(0);
-        let chunkIndex = 0;
-        let decryptedParts = [];
+    // Остальные функции JS (startDownload, handleMessageDecrypt и т.д.) идентичны предыдущим ответам.
+    // Вставьте их сюда.
 
-        // 1. Читаем и расшифровываем (аналогично тексту)
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const newBuf = new Uint8Array(buffer.length + value.length);
-            newBuf.set(buffer);
-            newBuf.set(value, buffer.length);
-            buffer = newBuf;
-
-            while (buffer.length >= ENCRYPTED_CHUNK_SIZE) {
-                const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE);
-                buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
-                const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++);
-                decryptedParts.push(decrypted);
-            }
-        }
-        // Хвост
-        if (buffer.length > 0) {
-            const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex);
-            decryptedParts.push(decrypted);
-        }
-
-        // 2. Создаем Blob
-        // Пытаемся угадать MIME по расширению, или ставим дефолт
-        let mime = 'image/png';
-        if(filename.match(/\.jpe?g$/i)) mime = 'image/jpeg';
-        if(filename.match(/\.webp$/i)) mime = 'image/webp';
-        if(filename.match(/\.gif$/i)) mime = 'image/gif';
-
-        const blob = new Blob(decryptedParts, { type: mime });
-        const url = URL.createObjectURL(blob);
-
-        // 3. Вставляем в <img>
-        const img = document.getElementById('secretImageDisplay');
-        img.src = url;
-
-        // Настраиваем кнопку скачивания
-        const btnDl = document.getElementById('btnDownloadImage');
-        btnDl.href = url;
-        btnDl.download = filename || 'secret-image.png';
-    }
-
-    // === ОБЩАЯ ЛОГИКА СКАЧИВАНИЯ ===
     async function startDownload(fileKey) {
         try {
-            // Распарсиваем данные о самом файле (имя, размер, тип, базовый IV)
-            // Они лежат строкой внутри поля MetaJson
             const fileMeta = JSON.parse(globalMeta.metaJson);
             const fileIvBase = fromBase64(fileMeta.iv);
 
-            // Запрашиваем поток
             const fileResp = await fetch(`?handler=Download&id=${globalId}`);
-
-            if (!fileResp.ok) {
-                if(fileResp.status === 404) throw new Error("Файл был удален (возможно, исчерпан лимит скачиваний).");
-                throw new Error("Ошибка загрузки: " + fileResp.status);
-            }
+            if (!fileResp.ok) throw new Error(fileResp.status === 404 ? "DATA_BURNED_OR_EXPIRED" : "STREAM_ERROR");
 
             const reader = fileResp.body.getReader();
 
-            // Ветвление: Текст или Файл
             if (fileMeta.type === 'message') {
-                // Текст показываем на странице
                 await handleMessageDecrypt(reader, fileKey, fileIvBase);
-
-                document.getElementById('lockedState').classList.add('d-none');
-                document.getElementById('messageArea').classList.remove('d-none');
+                document.getElementById('lockedState').classList.add('hidden');
+                document.getElementById('messageArea').classList.remove('hidden');
             }
             else if (fileMeta.type === 'image') {
-                // Скрываем кнопку, пишем статус
-                document.getElementById('btnReveal').classList.add('d-none');
-                document.getElementById('status').innerText = "Расшифровка изображения...";
-
+                document.getElementById('btnReveal').classList.add('hidden');
+                document.getElementById('status').innerText = "RENDERING_IMAGE...";
                 await handleImageDecrypt(reader, fileKey, fileIvBase, fileMeta.filename);
-
-                document.getElementById('lockedState').classList.add('d-none');
-                document.getElementById('imageArea').classList.remove('d-none');
+                document.getElementById('lockedState').classList.add('hidden');
+                document.getElementById('imageArea').classList.remove('hidden');
             }
             else {
-                // Файл сохраняем через StreamSaver
-                // Скрываем кнопку, показываем статус
-                document.getElementById('btnReveal').classList.add('d-none');
-                document.getElementById('status').innerHTML = `Скачивание <b>${fileMeta.filename}</b>...`;
-
+                document.getElementById('btnReveal').classList.add('hidden');
+                document.getElementById('status').innerHTML = `DOWNLOADING: <b class="text-emerald-400">${fileMeta.filename}</b>`;
                 await handleFileDownload(reader, fileKey, fileIvBase, fileMeta.filename, fileMeta.size);
 
-                // Успех
-                document.getElementById('lockedState').classList.add('d-none');
-                document.getElementById('fileSuccessArea').classList.remove('d-none');
+                document.getElementById('lockedState').classList.add('hidden');
+                document.getElementById('fileSuccessArea').classList.remove('hidden');
                 document.getElementById('dlFilename').innerText = fileMeta.filename;
             }
-
         } catch (err) {
             console.error(err);
-            document.getElementById('lockedState').classList.add('d-none');
-            document.getElementById('errorArea').classList.remove('d-none');
+            document.getElementById('lockedState').classList.add('hidden');
+            document.getElementById('errorArea').classList.remove('hidden');
             document.getElementById('errorText').innerText = err.message;
         }
     }
-
-    // === ОБРАБОТЧИК: ТЕКСТОВОЕ СООБЩЕНИЕ ===
     async function handleMessageDecrypt(reader, key, ivBase) {
-        let buffer = new Uint8Array(0);
-        let chunkIndex = 0;
-        let decryptedParts = [];
-
+        let buffer = new Uint8Array(0); let chunkIndex = 0; let decryptedParts = [];
         while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            // Добавляем в буфер
-            const newBuf = new Uint8Array(buffer.length + value.length);
-            newBuf.set(buffer);
-            newBuf.set(value, buffer.length);
-            buffer = newBuf;
-
-            // Обрабатываем полные чанки
+            const { done, value } = await reader.read(); if (done) break;
+            const newBuf = new Uint8Array(buffer.length + value.length); newBuf.set(buffer); newBuf.set(value, buffer.length); buffer = newBuf;
             while (buffer.length >= ENCRYPTED_CHUNK_SIZE) {
-                const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE);
-                buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
-                const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++);
-                decryptedParts.push(decrypted);
+                const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE); buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
+                const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++); decryptedParts.push(decrypted);
             }
         }
-
-        // Обработка хвоста
-        if (buffer.length > 0) {
-            const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex);
-            decryptedParts.push(decrypted);
-        }
-
-        // Собираем строку
-        const blob = new Blob(decryptedParts);
-        const text = await blob.text();
-        document.getElementById('messageContent').innerText = text;
+        if (buffer.length > 0) { const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex); decryptedParts.push(decrypted); }
+        const blob = new Blob(decryptedParts); document.getElementById('messageContent').innerText = await blob.text();
     }
-
-    // === ОБРАБОТЧИК: ФАЙЛ (STREAM SAVER) ===
+    async function handleImageDecrypt(reader, key, ivBase, filename) {
+        let buffer = new Uint8Array(0); let chunkIndex = 0; let decryptedParts = [];
+        while (true) {
+            const { done, value } = await reader.read(); if (done) break;
+            const newBuf = new Uint8Array(buffer.length + value.length); newBuf.set(buffer); newBuf.set(value, buffer.length); buffer = newBuf;
+            while (buffer.length >= ENCRYPTED_CHUNK_SIZE) {
+                const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE); buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
+                const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++); decryptedParts.push(decrypted);
+            }
+        }
+        if (buffer.length > 0) { const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex); decryptedParts.push(decrypted); }
+        let mime = 'image/png'; if(filename.match(/\.jpe?g$/i)) mime = 'image/jpeg'; if(filename.match(/\.webp$/i)) mime = 'image/webp'; if(filename.match(/\.gif$/i)) mime = 'image/gif';
+        const blob = new Blob(decryptedParts, { type: mime });
+        const url = URL.createObjectURL(blob);
+        document.getElementById('secretImageDisplay').src = url;
+        const btnDl = document.getElementById('btnDownloadImage'); btnDl.href = url; btnDl.download = filename || 'secret-image.png';
+    }
     async function handleFileDownload(reader, key, ivBase, filename, size) {
-        // Создаем поток записи на диск
-        // Внимание: StreamSaver требует HTTPS (или localhost)
         const fileStream = streamSaver.createWriteStream(filename, { size: size });
         const writer = fileStream.getWriter();
-
-        let buffer = new Uint8Array(0);
-        let chunkIndex = 0;
-
+        let buffer = new Uint8Array(0); let chunkIndex = 0;
         try {
             while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const newBuf = new Uint8Array(buffer.length + value.length);
-                newBuf.set(buffer);
-                newBuf.set(value, buffer.length);
-                buffer = newBuf;
-
+                const { done, value } = await reader.read(); if (done) break;
+                const newBuf = new Uint8Array(buffer.length + value.length); newBuf.set(buffer); newBuf.set(value, buffer.length); buffer = newBuf;
                 while (buffer.length >= ENCRYPTED_CHUNK_SIZE) {
-                    const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE);
-                    buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
-
-                    const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++);
-                    await writer.write(new Uint8Array(decrypted));
+                    const chunk = buffer.slice(0, ENCRYPTED_CHUNK_SIZE); buffer = buffer.slice(ENCRYPTED_CHUNK_SIZE);
+                    const decrypted = await decryptChunk(chunk, key, ivBase, chunkIndex++); await writer.write(new Uint8Array(decrypted));
                 }
             }
-
-            if (buffer.length > 0) {
-                const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex);
-                await writer.write(new Uint8Array(decrypted));
-            }
-
+            if (buffer.length > 0) { const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex); await writer.write(new Uint8Array(decrypted)); }
             await writer.close();
-        } catch (e) {
-            console.error("Stream Error:", e);
-            writer.abort(e);
-            throw new Error("Ошибка целостности данных или разрыв соединения.");
-        }
+        } catch (e) { console.error("Stream Error:", e); writer.abort(e); throw new Error("STREAM_INTERRUPTED"); }
     }
-
-    // === КРИПТОГРАФИЧЕСКИЕ ХЕЛПЕРЫ ===
-
-    // Расшифровка одного чанка
-    async function decryptChunk(data, key, ivBase, index) {
-        const iv = deriveIv(ivBase, index);
-        return await window.crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: iv },
-            key,
-            data
-        );
-    }
-
-    // Генерация IV на основе счетчика (должна совпадать с логикой отправителя!)
-    function deriveIv(baseIv, counter) {
-        const iv = new Uint8Array(baseIv);
-        const view = new DataView(iv.buffer);
-        // XOR последних 4 байт с номером чанка
-        const currentLast4 = view.getUint32(8, true);
-        view.setUint32(8, currentLast4 ^ counter, true);
-        return iv;
-    }
-
-    // Генерация ключа из пароля (PBKDF2)
-    async function deriveKeyFromPassword(password, salt) {
-        const enc = new TextEncoder();
-        const keyMaterial = await window.crypto.subtle.importKey(
-            "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
-        );
-        return await window.crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
-            keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-        );
-    }
-
-    // Утилиты
-    function fromBase64(str) {
-        return Uint8Array.from(atob(str), c => c.charCodeAt(0));
-    }
-
-    function copyMessage() {
-        const text = document.getElementById('messageContent').innerText;
-        navigator.clipboard.writeText(text);
-
-        // Визуальный эффект на кнопке
-        const btn = document.querySelector('#messageArea button');
-        const oldHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check"></i> Скопировано';
-        setTimeout(() => btn.innerHTML = oldHtml, 2000);
-    }
+    async function decryptChunk(data, key, ivBase, index) { const iv = deriveIv(ivBase, index); return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data); }
+    function deriveIv(baseIv, counter) { const iv = new Uint8Array(baseIv); const view = new DataView(iv.buffer); const currentLast4 = view.getUint32(8, true); view.setUint32(8, currentLast4 ^ counter, true); return iv; }
+    async function deriveKeyFromPassword(password, salt) { const enc = new TextEncoder(); const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]); return await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
+    function fromBase64(str) { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+    function copyMessage() { const text = document.getElementById('messageContent').innerText; navigator.clipboard.writeText(text); }
 </script>

@@ -1,88 +1,119 @@
 ﻿<!DOCTYPE html>
-<html lang="ru" data-bs-theme="dark">
+<html lang="ru">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - VoidDrop</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><path d=%22M20 2L36 11V29L20 38L4 29V11L20 2Z%22 stroke=%22%2310b981%22 stroke-width=%224%22 fill=%22none%22/><rect x=%2216%22 y=%2216%22 width=%228%22 height=%228%22 rx=%221%22 fill=%22%23e2e8f0%22/></svg>">
-
-    <!-- Bootstrap 5 & Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        zinc: { 850: '#1f1f22', 900: '#18181b', 950: '#09090b' }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <style>
+        body {
+            background-color: #09090b;
+            color: #e4e4e7;
+            background-image: linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        ::selection {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 3px;
+        }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #10b981;
+            }
+
+        /* ВАЖНО: @@ экранирует символ для Razor */
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .active-tab {
+            background-color: #27272a !important;
+            color: #34d399 !important;
+            border: 1px solid #3f3f46 !important;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .dragover {
+            border-color: #10b981 !important;
+            background-color: rgba(16, 185, 129, 0.1) !important;
+        }
+    </style>
 </head>
-<body>
-    <div class="app-wrapper d-flex flex-column min-vh-100">
-        <!-- Navbar -->
+<body class="flex flex-col min-h-screen overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+    <header class="w-full max-w-5xl mx-auto p-6 border-b border-zinc-800/50 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
+        <div>
+            <a href="/" class="text-2xl font-mono font-bold text-zinc-100 uppercase tracking-widest flex items-center gap-3 hover:opacity-80 transition">
+                <span class="text-emerald-500 animate-pulse-slow">●</span> Void<span class="text-emerald-500">_</span>Drop
+            </a>
+            <p class="text-zinc-500 font-mono text-[10px] mt-1 pl-6 tracking-wider">SECURE_FILE_TUNNEL // <span class="text-emerald-500">E2EE</span></p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">[ Send ]</a>
+            <a href="/Request" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">[ Receive ]</a>
+        </div>
+    </header>
 
-        <nav class="navbar navbar-expand-lg navbar-dark glass-effect mb-4 sticky-top">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center fw-bold tracking-tight" href="/">
-                    <div class="position-relative me-2 logo-container">
-                        <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="logo_grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#34d399" />
-                                    <stop offset="1" stop-color="#059669" />
-                                </linearGradient>
-                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feGaussianBlur stdDeviation="2" result="blur" />
-                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                </filter>
-                            </defs>
-                            <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke="url(#logo_grad)" stroke-width="3" stroke-linejoin="round" fill="rgba(16, 185, 129, 0.1)" />
-                            <rect x="16" y="16" width="8" height="8" rx="1" fill="#e2e8f0" filter="url(#glow)" />
-                            <path d="M20 2V8 M20 32V38 M4 11L9 14 M36 11L31 14" stroke="url(#logo_grad)" stroke-width="1.5" stroke-opacity="0.5" />
-                        </svg>
-                    </div>
-                    <span style="font-family: 'JetBrains Mono', monospace; letter-spacing: -1px;">
-                        Void<span class="text-primary">Drop</span>
-                    </span>
-                </a>
+    <main class="flex-grow w-full max-w-3xl mx-auto px-4 pb-10">
+        @RenderBody()
+    </main>
 
-                <!-- Кнопка "Бургер" для мобильных -->
-                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-
-                <!-- Меню -->
-                <div class="collapse navbar-collapse" id="navbarContent">
-                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="/">
-                                <i class="bi bi-send me-1"></i>Отправить
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="/Request">
-                                <i class="bi bi-box-arrow-in-down me-1"></i>Получить
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-
-
-
-        <!-- Main Content -->
-        <main role="main" class="flex-grow-1 d-flex align-items-center">
-            @RenderBody()
-        </main>
-
-        <!-- Footer -->
-        <footer class="text-center py-4 text-muted small">
-            <div class="container">
-                <a class="mb-0" href="https://github.com/KuzarinM/VoidDropSecure">Исходный код на github</a>
-            </div>
-        </footer>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <footer class="text-center py-8 text-zinc-600 text-[10px] font-mono border-t border-zinc-800/50 mt-auto">
+        <div class="container mx-auto">
+            <a href="https://github.com/KuzarinM/VoidDropSecure" class="hover:text-emerald-500 transition flex items-center justify-center gap-2">
+                <i class="bi bi-github"></i> SOURCE_CODE::GITHUB
+            </a>
+        </div>
+    </footer>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
