@@ -59,7 +59,6 @@
                 background: #10b981;
             }
 
-        /* ВАЖНО: @@ экранирует символ для Razor */
         .animate-fade-in {
             animation: fadeIn 0.5s ease-out forwards;
         }
@@ -90,16 +89,22 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+
     <header class="w-full max-w-5xl mx-auto p-6 border-b border-zinc-800/50 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
         <div>
             <a href="/" class="text-2xl font-mono font-bold text-zinc-100 uppercase tracking-widest flex items-center gap-3 hover:opacity-80 transition">
                 <span class="text-emerald-500 animate-pulse-slow">●</span> Void<span class="text-emerald-500">_</span>Drop
             </a>
-            <p class="text-zinc-500 font-mono text-[10px] mt-1 pl-6 tracking-wider">SECURE_FILE_TUNNEL // <span class="text-emerald-500">E2EE</span></p>
+            <p class="text-zinc-500 font-mono text-[10px] mt-1 pl-6 tracking-wider">БЕЗОПАСНЫЙ ОБМЕН // <span class="text-emerald-500">E2EE</span></p>
         </div>
+
         <div class="flex items-center gap-3">
-            <a href="/" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">[ Send ]</a>
-            <a href="/Request" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">[ Receive ]</a>
+            <a href="/" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">
+                [ ОТПРАВИТЬ ]
+            </a>
+            <a href="/Request" class="text-[10px] font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 px-4 py-2 rounded transition uppercase bg-zinc-900">
+                [ ПОЛУЧИТЬ ]
+            </a>
         </div>
     </header>
 
@@ -114,6 +119,7 @@
             </a>
         </div>
     </footer>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

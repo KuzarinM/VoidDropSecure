@@ -1,23 +1,24 @@
 ﻿@page "{id?}"
 @model RequestModel
 @{
-    ViewData["Title"] = Model.IsSenderMode ? "Secure Tunnel" : "Gateway";
+    ViewData["Title"] = Model.IsSenderMode ? "Безопасный канал" : "Шлюз";
 }
 
 <div class="animate-fade-in">
+    
     @if (!Model.IsSenderMode)
     {
-        <!-- === CREATOR MODE === -->
+        <!-- === РЕЖИМ СОЗДАТЕЛЯ (ПОЛУЧАТЕЛЯ) === -->
         <div id="creator-step-1" class="bg-zinc-900 border border-zinc-800 p-8 rounded-lg text-center shadow-2xl max-w-2xl mx-auto">
             <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-zinc-950 border border-zinc-800 mb-6 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                 <i class="bi bi-broadcast text-5xl animate-pulse-slow"></i>
             </div>
-            <h2 class="text-2xl font-mono font-bold text-zinc-100 mb-3 uppercase tracking-widest">INCOMING_GATEWAY</h2>
+            <h2 class="text-2xl font-mono font-bold text-zinc-100 mb-3 uppercase tracking-widest">ПРИЕМ ФАЙЛОВ</h2>
             <p class="text-zinc-500 font-mono text-xs mb-8 max-w-md mx-auto leading-relaxed">
-                Initialize a secure, ephemeral RSA-2048 tunnel. Share the generated link to receive files with End-to-End encryption.
+                Создайте одноразовый защищенный шлюз (RSA-2048). Отправьте ссылку собеседнику, чтобы он мог передать вам данные через шифрованный канал.
             </p>
             <button onclick="createRequest()" id="btnCreate" class="w-full md:w-auto px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-mono font-bold text-sm rounded shadow-[0_0_20px_rgba(16,185,129,0.3)] transition hover:scale-105 duration-200">
-                INITIALIZE_GATEWAY
+                СОЗДАТЬ ШЛЮЗ
             </button>
         </div>
 
@@ -25,28 +26,34 @@
             <div class="absolute top-0 w-full left-0 h-0.5 bg-zinc-800 overflow-hidden">
                 <div class="h-full bg-emerald-400 w-1/3 animate-[loading_2s_infinite]"></div>
             </div>
-            <h4 class="text-emerald-400 font-mono text-sm tracking-[0.2em] mb-6 animate-pulse uppercase mt-4">Waiting_For_Connection...</h4>
+
+            <h4 class="text-emerald-400 font-mono text-sm tracking-[0.2em] mb-6 animate-pulse uppercase mt-4">ОЖИДАНИЕ ПОДКЛЮЧЕНИЯ...</h4>
+            
             <div class="flex items-center gap-3 mb-8">
                  <div class="relative w-full">
                      <div class="absolute inset-y-0 left-0 flex items-center px-3 pointer-events-none text-zinc-600 font-mono text-xs">LINK:</div>
                      <input type="text" id="requestLink" class="w-full bg-zinc-950 border border-emerald-500/30 text-emerald-500 font-mono text-xs py-3 pl-12 pr-3 rounded focus:outline-none" readonly>
                  </div>
-                 <button onclick="copyLink()" class="p-3 bg-zinc-800 border border-zinc-700 hover:border-emerald-500 text-zinc-400 hover:text-emerald-400 transition rounded flex-shrink-0"><i class="bi bi-clipboard"></i></button>
+                 <button onclick="copyLink()" class="p-3 bg-zinc-800 border border-zinc-700 hover:border-emerald-500 text-zinc-400 hover:text-emerald-400 transition rounded flex-shrink-0">
+                     <i class="bi bi-clipboard"></i>
+                 </button>
             </div>
+
             <div class="flex justify-center mb-8">
                 <div class="p-3 bg-white rounded shadow-xl">
                     <div id="qrcode"></div>
                 </div>
             </div>
+
             <div class="text-[10px] font-mono text-amber-500/70 border border-dashed border-amber-900/30 p-3 rounded bg-amber-900/5">
-                <i class="bi bi-exclamation-circle mr-1"></i> DO NOT CLOSE THIS TAB. DECRYPTION HAPPENS IN REAL-TIME HERE.
+                <i class="bi bi-exclamation-circle mr-1"></i> НЕ ЗАКРЫВАЙТЕ ВКЛАДКУ. РАСШИФРОВКА ПРОИСХОДИТ В РЕАЛЬНОМ ВРЕМЕНИ.
             </div>
         </div>
     }
 
     @if (Model.IsSenderMode)
     {
-        <!-- === SENDER MODE === -->
+        <!-- === РЕЖИМ ОТПРАВИТЕЛЯ === -->
         <input type="hidden" id="receiverPub" value="@Model.ReceiverPublicKey" />
         <input type="hidden" id="sessionId" value="@Model.SessionId" />
         
@@ -57,55 +64,64 @@
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    SECURE_TUNNEL_ESTABLISHED
+                    ЗАЩИЩЕННЫЙ ТУННЕЛЬ
                  </div>
                  <div class="text-[10px] font-mono text-zinc-600">RSA-2048</div>
             </div>
+            
+            <!-- Tabs -->
             <div class="grid grid-cols-3 gap-2 mb-6 bg-zinc-950 p-1 rounded border border-zinc-800">
-                <button id="tab-file" onclick="switchTab('file')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase active-tab">FILE</button>
-                <button id="tab-text" onclick="switchTab('text')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">MSG</button>
-                <button id="tab-image" onclick="switchTab('image')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">IMG</button>
+                <button id="tab-file" onclick="switchTab('file')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase active-tab">ФАЙЛ</button>
+                <button id="tab-text" onclick="switchTab('text')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">ТЕКСТ</button>
+                <button id="tab-image" onclick="switchTab('image')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">ФОТО</button>
             </div>
+
+            <!-- PANES -->
             <div id="pane-file" class="mb-6">
                 <div class="border-2 border-dashed border-zinc-700 bg-zinc-950/30 p-8 text-center rounded cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-900/5 transition group" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-upload text-3xl text-zinc-600 group-hover:text-emerald-500 transition mb-3 block"></i>
-                    <h5 class="text-xs font-mono text-zinc-300 font-bold uppercase">Select_Data_Packet</h5>
-                    <p id="fileNameDisplay" class="text-[10px] font-mono text-zinc-500 mt-1">ANY SIZE</p>
+                    <h5 class="text-xs font-mono text-zinc-300 font-bold uppercase">ВЫБЕРИТЕ ФАЙЛ</h5>
+                    <p id="fileNameDisplay" class="text-[10px] font-mono text-zinc-500 mt-1">ЛЮБОЙ РАЗМЕР</p>
                     <input type="file" id="fileInput" class="hidden" onchange="updateFileName(this)">
                 </div>
             </div>
+            
             <div id="pane-text" class="mb-6 hidden">
-                 <textarea id="textInput" class="w-full bg-zinc-950 border border-zinc-700 text-zinc-200 p-4 font-mono text-sm rounded h-40 focus:border-emerald-500/50 outline-none resize-none" placeholder="// Enter secure message..."></textarea>
+                 <textarea id="textInput" class="w-full bg-zinc-950 border border-zinc-700 text-zinc-200 p-4 font-mono text-sm rounded h-40 focus:border-emerald-500/50 outline-none resize-none" placeholder="// Введите сообщение..."></textarea>
             </div>
+
             <div id="pane-image" class="mb-6 hidden">
                  <div class="border-2 border-dashed border-zinc-700 bg-zinc-950/30 p-4 text-center rounded cursor-pointer hover:border-emerald-500/40 transition" onclick="document.getElementById('imageInput').click()">
                     <div id="imagePreviewPlaceholder" class="py-8">
                         <i class="bi bi-images text-3xl text-zinc-600 mb-2 block"></i>
-                        <span class="text-xs font-mono text-zinc-500">PASTE (Ctrl+V) or CLICK</span>
+                        <span class="text-xs font-mono text-zinc-500">ВСТАВЬТЕ (Ctrl+V) или НАЖМИТЕ</span>
                     </div>
                     <img id="imagePreview" class="max-h-60 mx-auto hidden rounded border border-zinc-700 shadow-lg">
                     <input type="file" id="imageInput" class="hidden" accept="image/*" onchange="handleImageSelect(this)">
                  </div>
             </div>
+
             <div class="mb-6 pt-4 border-t border-zinc-800">
                  <label class="flex items-center gap-3 cursor-pointer group">
                     <div class="relative">
                         <input type="checkbox" id="usePassword" class="sr-only peer" onchange="togglePassword(this)">
                         <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-900 peer-checked:after:bg-emerald-400"></div>
                     </div>
-                    <span class="text-xs font-mono text-zinc-500 group-hover:text-zinc-300 transition font-bold uppercase">Add Extra Password Layer</span>
+                    <span class="text-xs font-mono text-zinc-500 group-hover:text-zinc-300 transition font-bold uppercase">Добавить защиту паролем</span>
                  </label>
                  <div id="passwordBlock" class="hidden mt-3">
                     <input type="password" id="senderPassword" class="w-full bg-zinc-950 border border-zinc-700 text-emerald-400 text-center font-mono text-sm p-2 rounded focus:border-emerald-500 outline-none tracking-widest" placeholder="••••••">
-                    <p class="text-[9px] text-amber-500/60 mt-1 font-mono text-center">Password must be shared via another channel.</p>
+                    <p class="text-[9px] text-amber-500/60 mt-1 font-mono text-center">Пароль нужно передать получателю отдельно.</p>
                  </div>
             </div>
+
             <button onclick="startReverseUpload()" id="btnSend" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-bold font-mono text-sm rounded transition shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2">
-                <i class="bi bi-send-fill"></i> ENCRYPT & TRANSMIT
+                <i class="bi bi-send-fill"></i> ЗАШИФРОВАТЬ И ОТПРАВИТЬ
             </button>
+
             <div id="progressArea" class="hidden mt-6">
                 <div class="flex justify-between text-[10px] font-mono text-zinc-400 mb-1">
-                    <span class="animate-pulse">UPLOADING...</span>
+                    <span class="animate-pulse">ОТПРАВКА...</span>
                     <span id="progressText" class="text-emerald-500">0%</span>
                 </div>
                 <div class="h-1 w-full bg-zinc-800 rounded overflow-hidden">
@@ -113,32 +129,30 @@
                 </div>
             </div>
         </div>
+        
         <div id="sender-success" class="hidden bg-zinc-900 border border-emerald-500/50 p-10 rounded-lg text-center shadow-[0_0_50px_rgba(16,185,129,0.15)] max-w-md mx-auto mt-10">
             <div class="text-emerald-500 text-6xl mb-6 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]"><i class="bi bi-check-circle-fill"></i></div>
-            <h2 class="text-xl font-mono font-bold text-zinc-100 mb-2 tracking-widest">TRANSMISSION_COMPLETE</h2>
-            <p class="text-zinc-500 text-xs font-mono mb-8">Data successfully encrypted and handed over to the receiver.</p>
-            <a href="/" class="inline-block px-6 py-2 border border-zinc-700 text-zinc-400 hover:text-white hover:border-emerald-500 hover:bg-zinc-800 rounded font-mono text-xs transition">START_NEW_SESSION</a>
+            <h2 class="text-xl font-mono font-bold text-zinc-100 mb-2 tracking-widest">ПЕРЕДАЧА ЗАВЕРШЕНА</h2>
+            <p class="text-zinc-500 text-xs font-mono mb-8">Данные успешно зашифрованы и переданы получателю.</p>
+            <a href="/" class="inline-block px-6 py-2 border border-zinc-700 text-zinc-400 hover:text-white hover:border-emerald-500 hover:bg-zinc-800 rounded font-mono text-xs transition">НА ГЛАВНУЮ</a>
         </div>
     }
 </div>
 
 <style>
-    /* Двойная собака экранирует символ */
     @@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 </style>
 
 <script>
-    // ... (Javascript без изменений, он был рабочий) ...
-    // Вставь сюда полный блок <script> из предыдущего ответа для Request.cshtml
     const CHUNK_SIZE = 4 * 1024 * 1024;
     let currentMode = 'file';
     let selectedImageBlob = null;
     let privateKeyObj = null;
-    // ... и так далее ...
+
     async function createRequest() {
         const btn = document.getElementById('btnCreate');
         btn.disabled = true;
-        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> GENERATING_KEYS...';
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> ГЕНЕРАЦИЯ КЛЮЧЕЙ...';
         try {
             const keyPair = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
             privateKeyObj = keyPair.privateKey; 
@@ -151,25 +165,25 @@
             document.getElementById('requestLink').value = link;
             new QRCode(document.getElementById("qrcode"), { text: link, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
             pollStatus(id);
-        } catch (e) { alert("ERROR: " + e.message); btn.disabled = false; }
+        } catch (e) { alert("ОШИБКА: " + e.message); btn.disabled = false; }
     }
     async function pollStatus(sessionId) {
         const interval = setInterval(async () => {
             try {
                 const resp = await fetch(`?handler=Check&id=${sessionId}`);
                 if (resp.status === 200) { clearInterval(interval); const data = await resp.json(); finishReceive(data); }
-                else if (resp.status === 404) { clearInterval(interval); alert("SESSION EXPIRED"); location.reload(); }
+                else if (resp.status === 404) { clearInterval(interval); alert("СЕССИЯ ИСТЕКЛА"); location.reload(); }
             } catch (e) { console.error(e); }
         }, 2000);
     }
     async function finishReceive(data) {
-        document.getElementById('creator-step-2').innerHTML = `<div class="py-10"><h3 class="text-emerald-400 font-mono animate-pulse"><span class="animate-spin inline-block mr-2">/</span> DECRYPTING_PAYLOAD_KEY...</h3></div>`;
+        document.getElementById('creator-step-2').innerHTML = `<div class="py-10"><h3 class="text-emerald-400 font-mono animate-pulse"><span class="animate-spin inline-block mr-2">/</span> ДЕШИФРОВКА КЛЮЧА...</h3></div>`;
         try {
             const encKeyBytes = fromBase64(data.encryptedKey);
             const rawOuterKey = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKeyObj, encKeyBytes);
             const outerKeyObj = await window.crypto.subtle.exportKey("jwk", await window.crypto.subtle.importKey("raw", rawOuterKey, "AES-GCM", true, ["encrypt", "decrypt"]));
             window.location.href = `/view/${data.fileId}#${outerKeyObj.k}`;
-        } catch (e) { alert("DECRYPTION ERROR: " + e.message); location.reload(); }
+        } catch (e) { alert("ОШИБКА ДЕШИФРОВКИ: " + e.message); location.reload(); }
     }
     function switchTab(mode) {
         currentMode = mode;
@@ -188,7 +202,7 @@
     function updateFileName(input) { if (input.files[0]) { const d = document.getElementById('fileNameDisplay'); d.innerText = input.files[0].name; d.classList.add('text-emerald-400', 'font-bold'); } }
     function handleImageSelect(input) { if (input.files && input.files[0]) processImageFile(input.files[0]); }
     function processImageFile(file) {
-        if (!file.type.startsWith('image/')) { alert("NOT IMAGE"); return; }
+        if (!file.type.startsWith('image/')) { alert("ЭТО НЕ КАРТИНКА"); return; }
         selectedImageBlob = file;
         const reader = new FileReader();
         reader.onload = (e) => { document.getElementById('imagePreviewPlaceholder').classList.add('hidden'); const img = document.getElementById('imagePreview'); img.src = e.target.result; img.classList.remove('hidden'); };
@@ -204,13 +218,13 @@
         const progressBar = document.getElementById('progressBar');
         const progressArea = document.getElementById('progressArea');
         let blobToSend = null, filename = 'secret', type = 'file';
-        if (currentMode === 'file') { const fi = document.getElementById('fileInput'); if (!fi.files[0]) { alert("SELECT FILE"); return; } blobToSend = fi.files[0]; filename = blobToSend.name; }
-        else if (currentMode === 'image') { if (!selectedImageBlob) { alert("NO IMAGE"); return; } blobToSend = selectedImageBlob; filename = "image.png"; type = 'image'; }
-        else { const txt = document.getElementById('textInput').value; if (!txt) { alert("ENTER TEXT"); return; } blobToSend = new Blob([txt], { type: 'text/plain' }); filename = 'message.txt'; type = 'message'; }
+        if (currentMode === 'file') { const fi = document.getElementById('fileInput'); if (!fi.files[0]) { alert("ВЫБЕРИТЕ ФАЙЛ"); return; } blobToSend = fi.files[0]; filename = blobToSend.name; }
+        else if (currentMode === 'image') { if (!selectedImageBlob) { alert("НЕТ КАРТИНКИ"); return; } blobToSend = selectedImageBlob; filename = "image.png"; type = 'image'; }
+        else { const txt = document.getElementById('textInput').value; if (!txt) { alert("ВВЕДИТЕ ТЕКСТ"); return; } blobToSend = new Blob([txt], { type: 'text/plain' }); filename = 'message.txt'; type = 'message'; }
         const usePass = document.getElementById('usePassword').checked;
         const password = document.getElementById('senderPassword').value;
-        if (usePass && !password) { alert("ENTER PASSWORD"); return; }
-        btn.disabled = true; btn.innerHTML = '<span class="animate-spin mr-2">/</span> ENCRYPTING...'; progressArea.classList.remove('hidden');
+        if (usePass && !password) { alert("ВВЕДИТЕ ПАРОЛЬ"); return; }
+        btn.disabled = true; btn.innerHTML = '<span class="animate-spin mr-2">/</span> ШИФРОВАНИЕ...'; progressArea.classList.remove('hidden');
         try {
             const fileKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
             const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
@@ -234,7 +248,7 @@
             } else { keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey); }
             const meta = JSON.stringify({ filename: filename, size: blobToSend.size, iv: toBase64(fileIvBase), type: type });
             const initResp = await fetch('/?handler=Init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meta: meta, ttl: 60, limit: 2, passwordSalt: passwordSalt, wrappedKey: serverWrappedKey }) });
-            if (!initResp.ok) throw new Error("INIT ERROR");
+            if (!initResp.ok) throw new Error("ОШИБКА ИНИЦИАЛИЗАЦИИ");
             const { id: fileId } = await initResp.json();
             let offset = 0, chunkIndex = 0;
             while (offset < blobToSend.size) {
@@ -254,7 +268,7 @@
             await fetch('?handler=CompleteSession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sessionId, fileId: fileId, encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)), metaJson: meta }) });
             document.getElementById('sender-ui').classList.add('hidden');
             document.getElementById('sender-success').classList.remove('hidden');
-        } catch (e) { console.error(e); alert("UPLOAD ERROR: " + e.message); btn.disabled = false; btn.innerHTML = 'RETRY'; }
+        } catch (e) { console.error(e); alert("ОШИБКА ЗАГРУЗКИ: " + e.message); btn.disabled = false; btn.innerHTML = 'ПОВТОРИТЬ'; }
     }
     function copyLink() { const copyText = document.getElementById("requestLink"); copyText.select(); navigator.clipboard.writeText(copyText.value); }
     function toBase64(u8) { return btoa(String.fromCharCode.apply(null, u8)); }

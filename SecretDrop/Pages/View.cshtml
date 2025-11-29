@@ -1,7 +1,7 @@
 ﻿@page "{id}"
 @model ViewModel
 @{
-    ViewData["Title"] = "Incoming Data";
+    ViewData["Title"] = "Входящие данные";
 }
 <script src="https://cdn.jsdelivr.net/npm/web-streams-polyfill@3/dist/polyfill.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
@@ -18,27 +18,27 @@
         <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
 
         <div class="text-center">
-            <h2 class="text-xl font-mono font-bold text-zinc-100 mb-2 tracking-widest uppercase">Encrypted_Payload_Detected</h2>
-            <p class="text-zinc-500 text-xs font-mono mb-8">End-to-End Encrypted. Server has zero knowledge.</p>
+            <h2 class="text-xl font-mono font-bold text-zinc-100 mb-2 tracking-widest uppercase">ОБНАРУЖЕНЫ ЗАШИФРОВАННЫЕ ДАННЫЕ</h2>
+            <p class="text-zinc-500 text-xs font-mono mb-8">Сквозное шифрование. Сервер не видит содержимое.</p>
 
             <div id="lockedState" class="transition-opacity duration-500">
                 <div class="inline-block bg-sky-900/20 text-sky-400 text-[10px] font-mono px-3 py-1 rounded border border-sky-500/20 mb-8">
-                    <i class="bi bi-eye-slash mr-1"></i> EPHEMERAL ACCESS ONLY
+                    <i class="bi bi-eye-slash mr-1"></i> ОДНОРАЗОВЫЙ ДОСТУП
                 </div>
 
                 <button onclick="processSecret()" id="btnReveal" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-mono font-bold tracking-wider text-sm rounded transition shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] group">
-                    <i class="bi bi-unlock-fill mr-2 group-hover:scale-110 inline-block transition"></i> DECRYPT & OPEN
+                    <i class="bi bi-unlock-fill mr-2 group-hover:scale-110 inline-block transition"></i> РАСШИФРОВАТЬ И ОТКРЫТЬ
                 </button>
 
-                <div id="status" class="mt-4 text-[10px] font-mono text-zinc-600">AWAITING_USER_INTERACTION...</div>
+                <div id="status" class="mt-4 text-[10px] font-mono text-zinc-600">ОЖИДАНИЕ ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ...</div>
             </div>
         </div>
 
         <!-- Text Message -->
         <div id="messageArea" class="hidden mt-6 animate-fade-in">
             <div class="flex justify-between items-center mb-2 border-b border-zinc-800 pb-2">
-                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Decrypted_Message</span>
-                <button onclick="copyMessage()" class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ COPY ]</button>
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">РАСШИФРОВАННОЕ_СООБЩЕНИЕ</span>
+                <button onclick="copyMessage()" class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ КОПИРОВАТЬ ]</button>
             </div>
             <div class="p-4 bg-zinc-950 border border-zinc-800 rounded font-mono text-sm text-emerald-100 break-words whitespace-pre-wrap shadow-inner min-h-[100px]" id="messageContent"></div>
         </div>
@@ -46,8 +46,8 @@
         <!-- Image -->
         <div id="imageArea" class="hidden mt-6 animate-fade-in text-center">
             <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2">
-                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Visual_Data</span>
-                <a id="btnDownloadImage" href="#" download class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ DOWNLOAD ]</a>
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">КАРТИНКА</span>
+                <a id="btnDownloadImage" href="#" download class="text-[10px] text-emerald-500 hover:text-white font-mono border border-zinc-800 hover:border-emerald-500 px-2 rounded transition">[ СКАЧАТЬ ]</a>
             </div>
             <div class="relative inline-block">
                 <div id="imgSpinner" class="absolute inset-0 flex items-center justify-center bg-zinc-950 text-zinc-600 z-10">
@@ -62,10 +62,13 @@
         <!-- File Success -->
         <div id="fileSuccessArea" class="hidden mt-8 text-center animate-fade-in py-4">
             <i class="bi bi-file-earmark-check-fill text-6xl text-emerald-500 mb-6 block drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]"></i>
-            <h4 class="text-zinc-100 font-mono font-bold tracking-widest mb-2">STREAM_ESTABLISHED</h4>
-            <p class="text-zinc-500 text-xs font-mono mb-6">Target: <span id="dlFilename" class="text-emerald-400">...</span></p>
+            <h4 class="text-zinc-100 font-mono font-bold tracking-widest mb-2">СКАЧИВАНИЕ НАЧАЛОСЬ</h4>
+            <p class="text-zinc-500 text-xs font-mono mb-6">Файл: <span id="dlFilename" class="text-emerald-400">...</span></p>
             <div class="p-3 bg-amber-900/10 border border-amber-500/20 text-amber-500 text-[10px] font-mono rounded inline-block max-w-sm">
-                <i class="bi bi-cone-striped mr-1"></i> Do not close this window until download completes. Decryption happens on-the-fly.
+                <i class="bi bi-cone-striped mr-1"></i> Не закрывайте окно до завершения. Расшифровка идет на лету.
+            </div>
+            <div class="mt-8">
+                <a href="/" class="text-xs font-mono text-zinc-500 hover:text-zinc-300 border border-zinc-800 px-4 py-2 rounded transition">[ НА ГЛАВНУЮ ]</a>
             </div>
         </div>
 
@@ -73,27 +76,27 @@
         <div id="errorArea" class="hidden mt-6 p-4 bg-red-900/10 border border-red-500/30 rounded flex items-start gap-4 animate-pulse">
             <i class="bi bi-x-circle-fill text-red-500 text-xl mt-1"></i>
             <div>
-                <h5 class="text-red-400 font-mono text-sm font-bold tracking-widest">ACCESS_DENIED</h5>
-                <p class="text-red-500/70 text-xs font-mono mt-1" id="errorText">Secret missing or link expired.</p>
+                <h5 class="text-red-400 font-mono text-sm font-bold tracking-widest">ОШИБКА ДОСТУПА</h5>
+                <p class="text-red-500/70 text-xs font-mono mt-1" id="errorText">Секрет удален или ссылка истекла.</p>
             </div>
         </div>
     </div>
 
-    <!-- PASSWORD OVERLAY (FIXED, HIGH Z-INDEX) -->
+    <!-- PASSWORD OVERLAY -->
     <div id="passwordPrompt" class="hidden fixed inset-0 bg-zinc-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-50 transition-all">
         <div class="bg-zinc-900 border border-amber-500/30 p-8 rounded-lg shadow-2xl flex flex-col items-center max-w-sm w-full">
             <div class="text-amber-500 mb-4"><i class="bi bi-shield-lock-fill text-5xl"></i></div>
-            <h5 class="text-zinc-100 font-mono text-sm mb-2 font-bold tracking-widest uppercase">Restricted_Access</h5>
-            <p class="text-zinc-500 text-xs font-mono mb-6 text-center">This payload is password protected.</p>
+            <h5 class="text-zinc-100 font-mono text-sm mb-2 font-bold tracking-widest uppercase">ДОСТУП ОГРАНИЧЕН</h5>
+            <p class="text-zinc-500 text-xs font-mono mb-6 text-center">Этот файл защищен паролем.</p>
 
             <input type="password" id="receiverPassword" class="bg-zinc-950 border border-zinc-700 text-emerald-400 text-center font-mono text-lg p-3 rounded w-full focus:border-amber-500 outline-none mb-4 placeholder:text-zinc-800 tracking-[0.2em] shadow-inner" placeholder="••••••" onkeydown="if(event.key === 'Enter') decryptWithPassword()">
 
             <button onclick="decryptWithPassword()" class="w-full px-8 py-3 bg-amber-600 hover:bg-amber-500 text-black font-mono font-bold text-xs rounded transition shadow-[0_0_15px_rgba(245,158,11,0.3)] uppercase">
-                <i class="bi bi-key-fill mr-2"></i> Unlock_Payload
+                <i class="bi bi-key-fill mr-2"></i> ОТКРЫТЬ ДОСТУП
             </button>
 
             <div id="passError" class="text-red-500 text-[10px] font-mono mt-4 hidden text-center bg-red-900/20 px-2 py-1 rounded border border-red-500/20">
-                INVALID_CREDENTIALS
+                НЕВЕРНЫЙ ПАРОЛЬ
             </div>
         </div>
     </div>
@@ -113,17 +116,17 @@
 
         if (!urlHash) {
             document.getElementById('errorArea').classList.remove('hidden');
-            document.getElementById('errorText').innerText = "CRITICAL: Decryption key missing from URL anchor.";
+            document.getElementById('errorText').innerText = "КРИТИЧЕСКАЯ ОШИБКА: Ключ шифрования отсутствует в ссылке.";
             return;
         }
 
         const btn = document.getElementById('btnReveal');
         btn.disabled = true;
-        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> DOWNLOADING_METADATA...';
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> ЗАГРУЗКА МЕТАДАННЫХ...';
 
         try {
             const metaResp = await fetch(`?handler=Meta&id=${globalId}`);
-            if (!metaResp.ok) throw new Error(metaResp.status === 404 ? "FILE_NOT_FOUND" : "SERVER_ERROR");
+            if (!metaResp.ok) throw new Error(metaResp.status === 404 ? "ФАЙЛ НЕ НАЙДЕН" : "ОШИБКА СЕРВЕРА");
             globalMeta = await metaResp.json();
 
             const urlKey = await window.crypto.subtle.importKey(
@@ -134,7 +137,6 @@
             if (globalMeta.hasPassword) {
                 globalMeta.urlKeyObj = urlKey;
                 document.getElementById('lockedState').classList.add('hidden');
-                // Показываем модалку
                 document.getElementById('passwordPrompt').classList.remove('hidden');
                 document.getElementById('receiverPassword').focus();
             } else {
@@ -156,7 +158,7 @@
         if(!password) return;
         errorDiv.classList.add('hidden');
         btnPass.disabled = true;
-        btnPass.innerHTML = '<span class="animate-spin">/</span> PROCESSING';
+        btnPass.innerHTML = '<span class="animate-spin">/</span> ОБРАБОТКА';
 
         try {
             const salt = fromBase64(globalMeta.passwordSalt);
@@ -182,20 +184,17 @@
 
             document.getElementById('passwordPrompt').classList.add('hidden');
             document.getElementById('lockedState').classList.remove('hidden');
-            document.getElementById('status').innerText = "PASSWORD_ACCEPTED. INITIATING_STREAM...";
+            document.getElementById('status').innerText = "ПАРОЛЬ ПРИНЯТ. ЗАПУСК ПОТОКА...";
             await startDownload(fileKey);
 
         } catch (e) {
             console.error(e);
-            errorDiv.innerText = "ACCESS_DENIED: BAD PASSWORD";
+            errorDiv.innerText = "ОТКАЗАНО: НЕВЕРНЫЙ ПАРОЛЬ";
             errorDiv.classList.remove('hidden');
             btnPass.disabled = false;
-            btnPass.innerHTML = '<i class="bi bi-key-fill mr-2"></i> UNLOCK_PAYLOAD';
+            btnPass.innerHTML = '<i class="bi bi-key-fill mr-2"></i> ОТКРЫТЬ ДОСТУП';
         }
     }
-
-    // Остальные функции JS (startDownload, handleMessageDecrypt и т.д.) идентичны предыдущим ответам.
-    // Вставьте их сюда.
 
     async function startDownload(fileKey) {
         try {
@@ -203,7 +202,7 @@
             const fileIvBase = fromBase64(fileMeta.iv);
 
             const fileResp = await fetch(`?handler=Download&id=${globalId}`);
-            if (!fileResp.ok) throw new Error(fileResp.status === 404 ? "DATA_BURNED_OR_EXPIRED" : "STREAM_ERROR");
+            if (!fileResp.ok) throw new Error(fileResp.status === 404 ? "ДАННЫЕ УДАЛЕНЫ ИЛИ ПРОСРОЧЕНЫ" : "ОШИБКА ПОТОКА");
 
             const reader = fileResp.body.getReader();
 
@@ -214,14 +213,14 @@
             }
             else if (fileMeta.type === 'image') {
                 document.getElementById('btnReveal').classList.add('hidden');
-                document.getElementById('status').innerText = "RENDERING_IMAGE...";
+                document.getElementById('status').innerText = "РЕНДЕРИНГ ИЗОБРАЖЕНИЯ...";
                 await handleImageDecrypt(reader, fileKey, fileIvBase, fileMeta.filename);
                 document.getElementById('lockedState').classList.add('hidden');
                 document.getElementById('imageArea').classList.remove('hidden');
             }
             else {
                 document.getElementById('btnReveal').classList.add('hidden');
-                document.getElementById('status').innerHTML = `DOWNLOADING: <b class="text-emerald-400">${fileMeta.filename}</b>`;
+                document.getElementById('status').innerHTML = `СКАЧИВАНИЕ: <b class="text-emerald-400">${fileMeta.filename}</b>`;
                 await handleFileDownload(reader, fileKey, fileIvBase, fileMeta.filename, fileMeta.size);
 
                 document.getElementById('lockedState').classList.add('hidden');
@@ -235,6 +234,7 @@
             document.getElementById('errorText').innerText = err.message;
         }
     }
+
     async function handleMessageDecrypt(reader, key, ivBase) {
         let buffer = new Uint8Array(0); let chunkIndex = 0; let decryptedParts = [];
         while (true) {
@@ -280,7 +280,7 @@
             }
             if (buffer.length > 0) { const decrypted = await decryptChunk(buffer, key, ivBase, chunkIndex); await writer.write(new Uint8Array(decrypted)); }
             await writer.close();
-        } catch (e) { console.error("Stream Error:", e); writer.abort(e); throw new Error("STREAM_INTERRUPTED"); }
+        } catch (e) { console.error("Stream Error:", e); writer.abort(e); throw new Error("ОБРЫВ СОЕДИНЕНИЯ"); }
     }
     async function decryptChunk(data, key, ivBase, index) { const iv = deriveIv(ivBase, index); return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data); }
     function deriveIv(baseIv, counter) { const iv = new Uint8Array(baseIv); const view = new DataView(iv.buffer); const currentLast4 = view.getUint32(8, true); view.setUint32(8, currentLast4 ^ counter, true); return iv; }
