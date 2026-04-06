@@ -2,7 +2,14 @@
 @model RequestModel
 @{
     ViewData["Title"] = Model.IsSenderMode ? "Отправка файла" : "Запрос файла";
+    // Получаем SiteKey из конфига (предположим, ты передал его через ViewData или Model)
+    // Если нет, просто замени строку ниже на свой ключ '0x4AAAAAA...'
+    var siteKey = "ТВОЙ_SITE_KEY_ОТ_CLOUDFLARE"; 
 }
+
+<!-- Подключаем API Cloudflare с явной отрисовкой -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" 
+        nonce="@Html.ViewContext.HttpContext.Items["csp-nonce"]" async defer></script>
 
 <div class="container" style="max-width: 650px;">
     
@@ -20,6 +27,7 @@
                 Сгенерируйте одноразовую ссылку-шлюз. Отправьте её собеседнику, 
                 и он сможет передать вам файл, текст или фото через защищенный RSA-туннель.
             </p>
+
             <button onclick="createRequest()" id="btnCreate" class="btn btn-primary btn-lg px-5 py-3 shadow-lg">
                 <i class="bi bi-link-45deg me-2"></i>Создать шлюз
             </button>
@@ -65,14 +73,12 @@
                 <h3>Отправка данных</h3>
             </div>
 
-            <!-- TABS -->
             <ul class="nav nav-pills nav-fill mb-4">
                 <li class="nav-item"><button class="nav-link active" id="tab-file" onclick="switchTab('file')"><i class="bi bi-file-earmark me-2"></i>Файл</button></li>
                 <li class="nav-item ms-1"><button class="nav-link" id="tab-text" onclick="switchTab('text')"><i class="bi bi-chat-text me-2"></i>Текст</button></li>
                 <li class="nav-item ms-1"><button class="nav-link" id="tab-image" onclick="switchTab('image')"><i class="bi bi-card-image me-2"></i>Фото</button></li>
             </ul>
 
-            <!-- PANE: FILE -->
             <div id="pane-file" class="mb-4">
                 <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-upload display-6 mb-2 text-secondary"></i>
@@ -82,12 +88,10 @@
                 </div>
             </div>
 
-            <!-- PANE: TEXT -->
             <div id="pane-text" class="mb-4 d-none">
                 <textarea id="textInput" class="form-control font-monospace" rows="5" placeholder="Введите секретное сообщение..."></textarea>
             </div>
 
-            <!-- PANE: IMAGE -->
             <div id="pane-image" class="mb-4 d-none">
                 <div class="file-drop-zone" id="imageDropZone" onclick="document.getElementById('imageInput').click()">
                      <div id="imagePreviewPlaceholder">
@@ -99,7 +103,6 @@
                 </div>
             </div>
 
-            <!-- OPTIONS: PASSWORD ONLY (TTL/LIMIT disabled in Request Mode) -->
             <div class="mb-4 pt-3 border-top border-secondary border-opacity-25">
                  <div class="form-check form-switch mb-2">
                     <input class="form-check-input" type="checkbox" id="usePassword" onchange="togglePassword(this)">
@@ -118,7 +121,6 @@
                 <i class="bi bi-send-fill me-2"></i>Зашифровать и Отправить
             </button>
 
-            <!-- PROGRESS -->
             <div id="progressArea" class="mt-4 d-none">
                 <div class="d-flex justify-content-between small mb-1">
                     <span class="text-muted">Отправка...</span>
@@ -139,43 +141,100 @@
             <a href="/" class="btn btn-outline-light">Отправить что-то еще</a>
         </div>
     }
+
+    <!-- ОБЩЕЕ МОДАЛЬНОЕ ОКНО ДЛЯ КАПЧИ -->
+    <div class="modal fade" id="captchaModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary shadow-lg">
+                <div class="modal-header border-0 text-center d-block">
+                    <h5 class="modal-title text-white">Проверка безопасности</h5>
+                    <p class="text-muted small mb-0">Пожалуйста, подтвердите, что вы человек</p>
+                </div>
+                <div class="modal-body d-flex justify-content-center py-4">
+                    <div id="captcha-container"></div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-link text-muted w-100 text-decoration-none" data-bs-dismiss="modal">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<script>
-    // === ОБЩИЕ ПЕРЕМЕННЫЕ ===
+@if (Model.IsCaptchaEnabled)
+{
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            nonce="@Html.ViewContext.HttpContext.Items["csp-nonce"]" async defer></script>
+}
+
+<script nonce="@Html.ViewContext.HttpContext.Items["csp-nonce"]">
     const CHUNK_SIZE = 4 * 1024 * 1024;
     let currentMode = 'file';
     let selectedImageBlob = null;
-    let privateKeyObj = null; // Только для Создателя
+    let privateKeyObj = null;
+    let captchaWidgetId = null;
+    const siteKey = "@Model.PublickKey";
+    const isCaptchaEnabled = @(Model.IsCaptchaEnabled ? "true" : "false");
+
+    // --- ОБЩАЯ ФУНКЦИЯ ВЫЗОВА КАПЧИ ---
+    function showCaptcha(onSuccessCallback) {
+
+        if(!isCaptchaEnabled){
+            onSuccessCallback(null);
+            return;
+        }
+
+        const captchaModalEl = document.getElementById('captchaModal');
+        const myModal = new bootstrap.Modal(captchaModalEl);
+        myModal.show();
+
+        if (captchaWidgetId !== null) {
+            turnstile.remove(captchaWidgetId);
+        }
+
+        captchaWidgetId = turnstile.render('#captcha-container', {
+            sitekey: siteKey,
+            callback: function(token) {
+                setTimeout(() => {
+                    myModal.hide();
+                    onSuccessCallback(token);
+                }, 500);
+            },
+        });
+    }
 
     // ==========================================
     // ЛОГИКА ПОЛУЧАТЕЛЯ (CREATOR)
     // ==========================================
     async function createRequest() {
+        showCaptcha(executeActualCreate);
+    }
+
+    async function executeActualCreate(captchaToken) {
         const btn = document.getElementById('btnCreate');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Генерация ключей...';
 
         try {
-            // 1. RSA Key Pair
             const keyPair = await window.crypto.subtle.generateKey(
                 { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
                 true, ["encrypt", "decrypt"]
             );
-            privateKeyObj = keyPair.privateKey; // Храним в RAM
-
-            // 2. Export Public Key
+            privateKeyObj = keyPair.privateKey; 
             const pubJwk = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
             
-            // 3. Create Session
             const resp = await fetch('?handler=CreateSession', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(JSON.stringify(pubJwk))
+                body: JSON.stringify({
+                    publicKey: JSON.stringify(pubJwk),
+                    captchaToken: captchaToken 
+                })
             });
-            const { id } = await resp.json();
 
-            // 4. UI
+            if (!resp.ok) throw new Error("Ошибка проверки капчи сервером");
+
+            const { id } = await resp.json();
             document.getElementById('creator-step-1').classList.add('d-none');
             document.getElementById('creator-step-2').classList.remove('d-none');
             const link = `${window.location.origin}/request/${id}`;
@@ -186,12 +245,11 @@
                 colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
             });
 
-            // 5. Start Polling
             pollStatus(id);
-
         } catch (e) {
             alert("Ошибка: " + e.message);
             btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-link-45deg me-2"></i>Создать шлюз';
         }
     }
 
@@ -213,40 +271,154 @@
     }
 
     async function finishReceive(data) {
-        // Получатель получил "Посылку"
         document.getElementById('creator-step-2').innerHTML = 
             `<h3 class="mt-5"><span class="spinner-border text-primary"></span> Дешифровка ключа...</h3>`;
-
         try {
-            // 1. Расшифровываем переданный AES-ключ своим RSA-ключом
             const encKeyBytes = fromBase64(data.encryptedKey);
             const rawOuterKey = await window.crypto.subtle.decrypt(
                 { name: "RSA-OAEP" }, privateKeyObj, encKeyBytes
             );
-
-            // 2. Импортируем его как JWK, чтобы получить параметр k (ключ в base64url)
             const outerKeyObj = await window.crypto.subtle.exportKey("jwk", 
                 await window.crypto.subtle.importKey("raw", rawOuterKey, "AES-GCM", true, ["encrypt", "decrypt"])
             );
-
-            // 3. Переходим на страницу просмотра
-            // В хеш передаем расшифрованный ключ. 
-            // View.cshtml сама разберется: если есть пароль, она его спросит и использует этот ключ как "OuterKey".
-            // Если пароля нет, она использует его как MasterKey.
             window.location.href = `/view/${data.fileId}#${outerKeyObj.k}`;
-
         } catch (e) {
             alert("Ошибка криптографии: " + e.message);
             location.reload();
         }
     }
 
-
     // ==========================================
     // ЛОГИКА ОТПРАВИТЕЛЯ (SENDER)
     // ==========================================
     
-    // UI Helpers
+    async function startReverseUpload() {
+        // Базовая валидация перед вызовом капчи
+        if (currentMode === 'file' && !document.getElementById('fileInput').files[0]) { alert("Выберите файл"); return; }
+        if (currentMode === 'image' && !selectedImageBlob) { alert("Нет картинки"); return; }
+        if (currentMode === 'text' && !document.getElementById('textInput').value) { alert("Введите текст"); return; }
+        
+        const usePass = document.getElementById('usePassword').checked;
+        if (usePass && !document.getElementById('senderPassword').value) { alert("Введите пароль"); return; }
+
+        showCaptcha(executeActualReverseUpload);
+    }
+
+    async function executeActualReverseUpload(captchaToken) {
+        const btn = document.getElementById('btnSend');
+        const progressBar = document.getElementById('progressBar');
+        const progressArea = document.getElementById('progressArea');
+        
+        let blobToSend = null;
+        let filename = 'secret';
+        let type = 'file';
+
+        if (currentMode === 'file') {
+            blobToSend = document.getElementById('fileInput').files[0];
+            filename = blobToSend.name;
+        } else if (currentMode === 'image') {
+            blobToSend = selectedImageBlob;
+            filename = "image.png";
+            type = 'image';
+        } else {
+            const txt = document.getElementById('textInput').value;
+            blobToSend = new Blob([txt], { type: 'text/plain' });
+            filename = 'message.txt';
+            type = 'message';
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
+        progressArea.classList.remove('d-none');
+
+        try {
+            const fileKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+            const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
+            const password = document.getElementById('senderPassword').value;
+            const usePass = document.getElementById('usePassword').checked;
+
+            let serverWrappedKey = null;
+            let passwordSalt = null;
+            let keyToTransport = null;
+
+            if (usePass) {
+                const outerKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                passwordSalt = toBase64(salt);
+                const passKey = await deriveKeyFromPassword(password, salt);
+                const rawFileKey = await window.crypto.subtle.exportKey("raw", fileKey);
+                const innerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                const innerEnc = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: innerIv }, passKey, rawFileKey);
+                const innerBlob = new Uint8Array(innerIv.length + innerEnc.byteLength);
+                innerBlob.set(innerIv); innerBlob.set(new Uint8Array(innerEnc), 12);
+                const outerIv = window.crypto.getRandomValues(new Uint8Array(12));
+                const outerEnc = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: outerIv }, outerKey, innerBlob);
+                const fullBlob = new Uint8Array(outerIv.length + outerEnc.byteLength);
+                fullBlob.set(outerIv); fullBlob.set(new Uint8Array(outerEnc), 12);
+                serverWrappedKey = toBase64(fullBlob);
+                keyToTransport = await window.crypto.subtle.exportKey("raw", outerKey);
+            } else {
+                keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey);
+            }
+
+            const metaDataString = JSON.stringify({ filename, size: blobToSend.size, iv: toBase64(fileIvBase), type });
+
+            const initResp = await fetch('/?handler=Init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meta: metaDataString,
+                    ttl: 60,
+                    limit: 2,
+                    passwordSalt: passwordSalt,
+                    wrappedKey: serverWrappedKey,
+                    captchaToken: captchaToken // ПЕРЕДАЕМ ТОКЕН ТУДА
+                })
+            });
+            if (!initResp.ok) throw new Error("Ошибка инициализации (капча?)");
+            const { id: fileId } = await initResp.json();
+
+            let offset = 0;
+            let chunkIndex = 0;
+            while (offset < blobToSend.size) {
+                const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
+                const chunkBuffer = await chunkBlob.arrayBuffer();
+                const chunkIv = deriveIv(fileIvBase, chunkIndex);
+                const encryptedChunk = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: chunkIv }, fileKey, chunkBuffer);
+                await fetch(`/?handler=Chunk&id=${fileId}`, { method: 'POST', body: encryptedChunk });
+                offset += CHUNK_SIZE; chunkIndex++;
+                const p = Math.min(100, Math.round((offset / blobToSend.size) * 100));
+                progressBar.style.width = p + "%";
+                document.getElementById('progressText').innerText = p + "%";
+            }
+
+            const receiverPubJson = document.getElementById('receiverPub').value;
+            const rsaPubKey = await window.crypto.subtle.importKey("jwk", JSON.parse(receiverPubJson), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+            const encryptedTransportKey = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, rsaPubKey, keyToTransport);
+
+            const sessionId = document.getElementById('sessionId').value;
+            await fetch('?handler=CompleteSession', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    fileId: fileId,
+                    encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)),
+                    metaJson: metaDataString
+                })
+            });
+
+            document.getElementById('sender-ui').classList.add('d-none');
+            document.getElementById('sender-success').classList.remove('d-none');
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+            btn.disabled = false;
+        }
+    }
+
+    // --- Helpers (Common) ---
     function switchTab(mode) {
         currentMode = mode;
         ['file', 'text', 'image'].forEach(t => {
@@ -288,7 +460,6 @@
         reader.readAsDataURL(file);
     }
 
-    // Paste Support
     document.addEventListener('paste', function(e) {
         if (currentMode !== 'image') return;
         const items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -301,183 +472,6 @@
         }
     });
 
-    // --- MAIN SEND LOGIC ---
-    async function startReverseUpload() {
-        const btn = document.getElementById('btnSend');
-        const progressBar = document.getElementById('progressBar');
-        const progressArea = document.getElementById('progressArea');
-        
-        let blobToSend = null;
-        let filename = 'secret';
-        let type = 'file';
-
-        // 1. Prepare Data
-        if (currentMode === 'file') {
-            const fi = document.getElementById('fileInput');
-            if (!fi.files[0]) { alert("Выберите файл"); return; }
-            blobToSend = fi.files[0];
-            filename = blobToSend.name;
-        } else if (currentMode === 'image') {
-            if (!selectedImageBlob) { alert("Нет картинки"); return; }
-            blobToSend = selectedImageBlob;
-            filename = "image.png";
-            type = 'image';
-        } else {
-            const txt = document.getElementById('textInput').value;
-            if (!txt) { alert("Введите текст"); return; }
-            blobToSend = new Blob([txt], { type: 'text/plain' });
-            filename = 'message.txt';
-            type = 'message';
-        }
-
-        const usePass = document.getElementById('usePassword').checked;
-        const password = document.getElementById('senderPassword').value;
-        if (usePass && !password) { alert("Введите пароль"); return; }
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
-        progressArea.classList.remove('d-none');
-
-        try {
-            // 2. Encryption Setup
-            // A. Генерируем Master Key для файла
-            const fileKey = await window.crypto.subtle.generateKey(
-                { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
-            );
-            const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
-
-            // B. Подготовка "Матрешки" (Wrapped Key) для Server Init
-            let serverWrappedKey = null; // То, что пойдет в Init
-            let passwordSalt = null;
-            let keyToTransport = null;   // То, что пойдет через RSA получателю
-
-            if (usePass) {
-                // --- СЦЕНАРИЙ С ПАРОЛЕМ ---
-                // Мы должны создать структуру, которую ожидает View.cshtml:
-                // UrlKey -> [ OuterIV + Enc( PassKey -> [ InnerIV + Enc(MasterKey) ] ) ]
-                
-                // 1. Генерируем фиктивный "URL Key" (он же Outer Key), который передадим через RSA
-                const outerKey = await window.crypto.subtle.generateKey(
-                    { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
-                );
-                
-                // 2. Ключ из пароля
-                const salt = window.crypto.getRandomValues(new Uint8Array(16));
-                passwordSalt = toBase64(salt);
-                const passKey = await deriveKeyFromPassword(password, salt);
-
-                // 3. Шифруем MasterKey Паролем (Inner Layer)
-                const rawFileKey = await window.crypto.subtle.exportKey("raw", fileKey);
-                const innerIv = window.crypto.getRandomValues(new Uint8Array(12));
-                const innerEnc = await window.crypto.subtle.encrypt(
-                    { name: "AES-GCM", iv: innerIv }, passKey, rawFileKey
-                );
-                // Собираем Inner Blob
-                const innerBlob = new Uint8Array(innerIv.length + innerEnc.byteLength);
-                innerBlob.set(innerIv);
-                innerBlob.set(new Uint8Array(innerEnc), 12);
-
-                // 4. Шифруем InnerBlob "URL-ключом" (Outer Layer)
-                const outerIv = window.crypto.getRandomValues(new Uint8Array(12));
-                const outerEnc = await window.crypto.subtle.encrypt(
-                    { name: "AES-GCM", iv: outerIv }, outerKey, innerBlob
-                );
-                // Собираем Full Blob
-                const fullBlob = new Uint8Array(outerIv.length + outerEnc.byteLength);
-                fullBlob.set(outerIv);
-                fullBlob.set(new Uint8Array(outerEnc), 12);
-
-                serverWrappedKey = toBase64(fullBlob); // Это храним на сервере
-                
-                // Через RSA мы передадим RAW байты ключа outerKey
-                keyToTransport = await window.crypto.subtle.exportKey("raw", outerKey);
-
-            } else {
-                // --- БЕЗ ПАРОЛЯ ---
-                // ServerWrappedKey = null
-                // Через RSA передаем RAW байты самого MasterKey
-                keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey);
-            }
-
-            // 3. Init Upload (используем API Index страницы)
-            const meta = JSON.stringify({
-                filename: filename,
-                size: blobToSend.size,
-                iv: toBase64(fileIvBase),
-                type: type
-            });
-
-            const initResp = await fetch('/?handler=Init', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    meta: meta,
-                    ttl: 60, // Фиксируем 1 час для обратной связи
-                    limit: 2, // Лимит 2 (на всякий случай)
-                    passwordSalt: passwordSalt,
-                    wrappedKey: serverWrappedKey 
-                })
-            });
-            if (!initResp.ok) throw new Error("Init error");
-            const { id: fileId } = await initResp.json();
-
-            // 4. Upload Chunks
-            let offset = 0;
-            let chunkIndex = 0;
-            while (offset < blobToSend.size) {
-                const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
-                const chunkBuffer = await chunkBlob.arrayBuffer();
-                const chunkIv = deriveIv(fileIvBase, chunkIndex);
-                const encryptedChunk = await window.crypto.subtle.encrypt(
-                    { name: "AES-GCM", iv: chunkIv }, fileKey, chunkBuffer
-                );
-                await fetch(`/?handler=Chunk&id=${fileId}`, { method: 'POST', body: encryptedChunk });
-                
-                offset += CHUNK_SIZE;
-                chunkIndex++;
-                const p = Math.min(100, Math.round((offset / blobToSend.size) * 100));
-                progressBar.style.width = p + "%";
-                document.getElementById('progressText').innerText = p + "%";
-            }
-
-            // 5. Encrypt Key for Receiver (RSA)
-            const receiverPubJson = document.getElementById('receiverPub').value;
-            const rsaPubKey = await window.crypto.subtle.importKey(
-                "jwk", JSON.parse(receiverPubJson), 
-                { name: "RSA-OAEP", hash: "SHA-256" }, 
-                false, ["encrypt"]
-            );
-            
-            // Шифруем keyToTransport (это или MasterKey, или OuterKey)
-            const encryptedTransportKey = await window.crypto.subtle.encrypt(
-                { name: "RSA-OAEP" }, rsaPubKey, keyToTransport
-            );
-
-            // 6. Complete Session
-            const sessionId = document.getElementById('sessionId').value;
-            await fetch('?handler=CompleteSession', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sessionId: sessionId,
-                    fileId: fileId,
-                    encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)),
-                    metaJson: meta // Дублируем мету для удобства (не обязательно)
-                })
-            });
-
-            // 7. Success UI
-            document.getElementById('sender-ui').classList.add('d-none');
-            document.getElementById('sender-success').classList.remove('d-none');
-
-        } catch (e) {
-            console.error(e);
-            alert("Error: " + e.message);
-            btn.disabled = false;
-        }
-    }
-
-    // --- Helpers (Common) ---
     function copyLink() {
         const copyText = document.getElementById("requestLink");
         copyText.select();
@@ -507,12 +501,7 @@
 
     async function deriveKeyFromPassword(password, salt) {
         const enc = new TextEncoder();
-        const keyMaterial = await window.crypto.subtle.importKey(
-            "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
-        );
-        return await window.crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
-            keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-        );
+        const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+        return await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
     }
-</script> 
+</script>
