@@ -137,35 +137,117 @@
             <a href="/" class="inline-block px-6 py-2 border border-zinc-700 text-zinc-400 hover:text-white hover:border-emerald-500 hover:bg-zinc-800 rounded font-mono text-xs transition">НА ГЛАВНУЮ</a>
         </div>
     }
+
+    <!-- ОБЩЕЕ МОДАЛЬНОЕ ОКНО ДЛЯ КАПЧИ -->
+    <div class="modal fade" id="captchaModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary shadow-lg">
+                <div class="modal-header border-0 text-center d-block">
+                    <h5 class="modal-title text-white">Проверка безопасности</h5>
+                    <p class="text-muted small mb-0">Пожалуйста, подтвердите, что вы человек</p>
+                </div>
+                <div class="modal-body d-flex justify-content-center py-4">
+                    <div id="captcha-container"></div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-link text-muted w-100 text-decoration-none" data-bs-dismiss="modal">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
     @@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 </style>
 
-<script>
+@if (Model.IsCaptchaEnabled)
+{
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            nonce="@Html.ViewContext.HttpContext.Items["csp-nonce"]" async defer></script>
+}
+
+<script nonce="@Html.ViewContext.HttpContext.Items["csp-nonce"]">
     const CHUNK_SIZE = 4 * 1024 * 1024;
     let currentMode = 'file';
     let selectedImageBlob = null;
     let privateKeyObj = null;
+    let captchaWidgetId = null;
+    const siteKey = "@Model.PublickKey";
+    const isCaptchaEnabled = @(Model.IsCaptchaEnabled ? "true" : "false");
+
+    // --- ОБЩАЯ ФУНКЦИЯ ВЫЗОВА КАПЧИ ---
+    function showCaptcha(onSuccessCallback) {
+
+        if(!isCaptchaEnabled){
+            onSuccessCallback(null);
+            return;
+        }
+
+        const captchaModalEl = document.getElementById('captchaModal');
+        const myModal = new bootstrap.Modal(captchaModalEl);
+        myModal.show();
+
+        if (captchaWidgetId !== null) {
+            turnstile.remove(captchaWidgetId);
+        }
+
+        captchaWidgetId = turnstile.render('#captcha-container', {
+            sitekey: siteKey,
+            callback: function(token) {
+                setTimeout(() => {
+                    myModal.hide();
+                    onSuccessCallback(token);
+                }, 500);
+            },
+        });
+    }
+
 
     async function createRequest() {
+        showCaptcha(executeActualCreate);
+    }
+
+    async function executeActualCreate(captchaToken) {
         const btn = document.getElementById('btnCreate');
         btn.disabled = true;
         btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> ГЕНЕРАЦИЯ КЛЮЧЕЙ...';
         try {
-            const keyPair = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+            const keyPair = await window.crypto.subtle.generateKey(
+                { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+                true, ["encrypt", "decrypt"]
+            );
             privateKeyObj = keyPair.privateKey; 
             const pubJwk = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
-            const resp = await fetch('?handler=CreateSession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(JSON.stringify(pubJwk)) });
+            
+            const resp = await fetch('?handler=CreateSession', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    publicKey: JSON.stringify(pubJwk),
+                    captchaToken: captchaToken 
+                })
+            });
+
+            if (!resp.ok) throw new Error("Ошибка проверки капчи сервером");
+
             const { id } = await resp.json();
-            document.getElementById('creator-step-1').classList.add('hidden');
-            document.getElementById('creator-step-2').classList.remove('hidden');
+            document.getElementById('creator-step-1').classList.add('d-none');
+            document.getElementById('creator-step-2').classList.remove('d-none');
             const link = `${window.location.origin}/request/${id}`;
             document.getElementById('requestLink').value = link;
-            new QRCode(document.getElementById("qrcode"), { text: link, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M });
+            
+            new QRCode(document.getElementById("qrcode"), {
+                text: link, width: 160, height: 160,
+                colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+            });
+
             pollStatus(id);
-        } catch (e) { alert("ОШИБКА: " + e.message); btn.disabled = false; }
+        } catch (e) {
+            alert("Ошибка: " + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-link-45deg me-2"></i>Создать шлюз';
+        }
     }
     async function pollStatus(sessionId) {
         const interval = setInterval(async () => {
@@ -177,58 +259,76 @@
         }, 2000);
     }
     async function finishReceive(data) {
-        document.getElementById('creator-step-2').innerHTML = `<div class="py-10"><h3 class="text-emerald-400 font-mono animate-pulse"><span class="animate-spin inline-block mr-2">/</span> ДЕШИФРОВКА КЛЮЧА...</h3></div>`;
+        document.getElementById('creator-step-2').innerHTML = 
+            `<h3 class="mt-5"><span class="spinner-border text-primary"></span> Дешифровка ключа...</h3>`;
         try {
             const encKeyBytes = fromBase64(data.encryptedKey);
-            const rawOuterKey = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKeyObj, encKeyBytes);
-            const outerKeyObj = await window.crypto.subtle.exportKey("jwk", await window.crypto.subtle.importKey("raw", rawOuterKey, "AES-GCM", true, ["encrypt", "decrypt"]));
+            const rawOuterKey = await window.crypto.subtle.decrypt(
+                { name: "RSA-OAEP" }, privateKeyObj, encKeyBytes
+            );
+            const outerKeyObj = await window.crypto.subtle.exportKey("jwk", 
+                await window.crypto.subtle.importKey("raw", rawOuterKey, "AES-GCM", true, ["encrypt", "decrypt"])
+            );
             window.location.href = `/view/${data.fileId}#${outerKeyObj.k}`;
-        } catch (e) { alert("ОШИБКА ДЕШИФРОВКИ: " + e.message); location.reload(); }
+        } catch (e) {
+            alert("Ошибка криптографии: " + e.message);
+            location.reload();
+        }
     }
-    function switchTab(mode) {
-        currentMode = mode;
-        ['file', 'text', 'image'].forEach(t => {
-            const btn = document.getElementById(`tab-${t}`);
-            const pane = document.getElementById(`pane-${t}`);
-            if (mode === t) { btn.classList.add('active-tab'); pane.classList.remove('hidden'); }
-            else { btn.classList.remove('active-tab'); pane.classList.add('hidden'); }
-        });
-    }
-    function togglePassword(chk) {
-        const block = document.getElementById('passwordBlock');
-        if(chk.checked) { block.classList.remove('hidden'); setTimeout(() => document.getElementById('senderPassword').focus(), 50); }
-        else { block.classList.add('hidden'); document.getElementById('senderPassword').value = ''; }
-    }
-    function updateFileName(input) { if (input.files[0]) { const d = document.getElementById('fileNameDisplay'); d.innerText = input.files[0].name; d.classList.add('text-emerald-400', 'font-bold'); } }
-    function handleImageSelect(input) { if (input.files && input.files[0]) processImageFile(input.files[0]); }
-    function processImageFile(file) {
-        if (!file.type.startsWith('image/')) { alert("ЭТО НЕ КАРТИНКА"); return; }
-        selectedImageBlob = file;
-        const reader = new FileReader();
-        reader.onload = (e) => { document.getElementById('imagePreviewPlaceholder').classList.add('hidden'); const img = document.getElementById('imagePreview'); img.src = e.target.result; img.classList.remove('hidden'); };
-        reader.readAsDataURL(file);
-    }
-    document.addEventListener('paste', function(e) {
-        if (currentMode !== 'image') return;
-        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (let i in items) { if (items[i].kind === 'file' && items[i].type.startsWith('image/')) { processImageFile(items[i].getAsFile()); e.preventDefault(); break; } }
-    });
+
+    // ==========================================
+    // ЛОГИКА ОТПРАВИТЕЛЯ (SENDER)
+    // ==========================================
+    
     async function startReverseUpload() {
+        // Базовая валидация перед вызовом капчи
+        if (currentMode === 'file' && !document.getElementById('fileInput').files[0]) { alert("Выберите файл"); return; }
+        if (currentMode === 'image' && !selectedImageBlob) { alert("Нет картинки"); return; }
+        if (currentMode === 'text' && !document.getElementById('textInput').value) { alert("Введите текст"); return; }
+        
+        const usePass = document.getElementById('usePassword').checked;
+        if (usePass && !document.getElementById('senderPassword').value) { alert("Введите пароль"); return; }
+
+        showCaptcha(executeActualReverseUpload);
+    }
+
+    async function executeActualReverseUpload(captchaToken) {
         const btn = document.getElementById('btnSend');
         const progressBar = document.getElementById('progressBar');
         const progressArea = document.getElementById('progressArea');
-        let blobToSend = null, filename = 'secret', type = 'file';
-        if (currentMode === 'file') { const fi = document.getElementById('fileInput'); if (!fi.files[0]) { alert("ВЫБЕРИТЕ ФАЙЛ"); return; } blobToSend = fi.files[0]; filename = blobToSend.name; }
-        else if (currentMode === 'image') { if (!selectedImageBlob) { alert("НЕТ КАРТИНКИ"); return; } blobToSend = selectedImageBlob; filename = "image.png"; type = 'image'; }
-        else { const txt = document.getElementById('textInput').value; if (!txt) { alert("ВВЕДИТЕ ТЕКСТ"); return; } blobToSend = new Blob([txt], { type: 'text/plain' }); filename = 'message.txt'; type = 'message'; }
-        const usePass = document.getElementById('usePassword').checked;
-        const password = document.getElementById('senderPassword').value;
-        if (usePass && !password) { alert("ВВЕДИТЕ ПАРОЛЬ"); return; }
-        btn.disabled = true; btn.innerHTML = '<span class="animate-spin mr-2">/</span> ШИФРОВАНИЕ...'; progressArea.classList.remove('hidden');
+        
+        let blobToSend = null;
+        let filename = 'secret';
+        let type = 'file';
+
+        if (currentMode === 'file') {
+            blobToSend = document.getElementById('fileInput').files[0];
+            filename = blobToSend.name;
+        } else if (currentMode === 'image') {
+            blobToSend = selectedImageBlob;
+            filename = "image.png";
+            type = 'image';
+        } else {
+            const txt = document.getElementById('textInput').value;
+            blobToSend = new Blob([txt], { type: 'text/plain' });
+            filename = 'message.txt';
+            type = 'message';
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
+        progressArea.classList.remove('d-none');
+
         try {
             const fileKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
             const fileIvBase = window.crypto.getRandomValues(new Uint8Array(12));
-            let serverWrappedKey = null, passwordSalt = null, keyToTransport = null;
+            const password = document.getElementById('senderPassword').value;
+            const usePass = document.getElementById('usePassword').checked;
+
+            let serverWrappedKey = null;
+            let passwordSalt = null;
+            let keyToTransport = null;
+
             if (usePass) {
                 const outerKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
                 const salt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -245,12 +345,30 @@
                 fullBlob.set(outerIv); fullBlob.set(new Uint8Array(outerEnc), 12);
                 serverWrappedKey = toBase64(fullBlob);
                 keyToTransport = await window.crypto.subtle.exportKey("raw", outerKey);
-            } else { keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey); }
-            const meta = JSON.stringify({ filename: filename, size: blobToSend.size, iv: toBase64(fileIvBase), type: type });
-            const initResp = await fetch('/?handler=Init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meta: meta, ttl: 60, limit: 2, passwordSalt: passwordSalt, wrappedKey: serverWrappedKey }) });
-            if (!initResp.ok) throw new Error("ОШИБКА ИНИЦИАЛИЗАЦИИ");
+            } else {
+                keyToTransport = await window.crypto.subtle.exportKey("raw", fileKey);
+            }
+
+            const metaDataString = JSON.stringify({ filename, size: blobToSend.size, iv: toBase64(fileIvBase), type });
+
+            const initResp = await fetch('/?handler=Init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meta: metaDataString,
+                    ttl: 60,
+                    limit: 2,
+                    passwordSalt: passwordSalt,
+                    wrappedKey: serverWrappedKey,
+                    captchaToken: captchaToken // ПЕРЕДАЕМ ТОКЕН ТУДА
+                })
+            });
+            if (!initResp.ok) throw new Error("Ошибка инициализации (капча?)");
             const { id: fileId } = await initResp.json();
-            let offset = 0, chunkIndex = 0;
+
+            let offset = 0;
+            let chunkIndex = 0;
+
             while (offset < blobToSend.size) {
                 const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
                 const chunkBuffer = await chunkBlob.arrayBuffer();
@@ -261,18 +379,117 @@
                 const p = Math.min(100, Math.round((offset / blobToSend.size) * 100));
                 progressBar.style.width = p + "%"; document.getElementById('progressText').innerText = p + "%";
             }
+
             const receiverPubJson = document.getElementById('receiverPub').value;
             const rsaPubKey = await window.crypto.subtle.importKey("jwk", JSON.parse(receiverPubJson), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
             const encryptedTransportKey = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, rsaPubKey, keyToTransport);
+
             const sessionId = document.getElementById('sessionId').value;
-            await fetch('?handler=CompleteSession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sessionId, fileId: fileId, encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)), metaJson: meta }) });
-            document.getElementById('sender-ui').classList.add('hidden');
-            document.getElementById('sender-success').classList.remove('hidden');
-        } catch (e) { console.error(e); alert("ОШИБКА ЗАГРУЗКИ: " + e.message); btn.disabled = false; btn.innerHTML = 'ПОВТОРИТЬ'; }
+            await fetch('?handler=CompleteSession', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    fileId: fileId,
+                    encryptedKey: toBase64(new Uint8Array(encryptedTransportKey)),
+                    metaJson: metaDataString
+                })
+            });
+
+            document.getElementById('sender-ui').classList.add('d-none');
+            document.getElementById('sender-success').classList.remove('d-none');
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+            btn.disabled = false;
+        }
     }
-    function copyLink() { const copyText = document.getElementById("requestLink"); copyText.select(); navigator.clipboard.writeText(copyText.value); }
+
+    // --- Helpers (Common) ---
+    function switchTab(mode) {
+        currentMode = mode;
+        ['file', 'text', 'image'].forEach(t => {
+            document.getElementById(`tab-${t}`).className = (mode === t) ? 'nav-link active' : 'nav-link';
+            const pane = document.getElementById(`pane-${t}`);
+            pane.classList.toggle('d-none', mode !== t);
+        });
+    }
+
+    function togglePassword(chk) {
+        const block = document.getElementById('passwordBlock');
+        block.classList.toggle('d-none', !chk.checked);
+        if(chk.checked) setTimeout(() => document.getElementById('senderPassword').focus(), 50);
+        else document.getElementById('senderPassword').value = '';
+    }
+
+    function updateFileName(input) {
+        if (input.files[0]) {
+            const d = document.getElementById('fileNameDisplay');
+            d.innerText = input.files[0].name;
+            d.classList.add('text-primary', 'fw-bold');
+        }
+    }
+
+    function handleImageSelect(input) {
+        if (input.files && input.files[0]) processImageFile(input.files[0]);
+    }
+
+    function processImageFile(file) {
+        if (!file.type.startsWith('image/')) { alert("Только изображения!"); return; }
+        selectedImageBlob = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('imagePreviewPlaceholder').classList.add('d-none');
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            img.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    document.addEventListener('paste', function(e) {
+        if (currentMode !== 'image') return;
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let i in items) {
+            if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+                processImageFile(items[i].getAsFile());
+                e.preventDefault();
+                break;
+            }
+        }
+    });
+
+    function copyLink() {
+        const copyText = document.getElementById("requestLink");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+    }
+    
+    function downloadQrImage() {
+        const c = document.getElementById("qrcode").querySelector("canvas");
+        if(c) {
+            const a = document.createElement("a");
+            a.href = c.toDataURL("image/png");
+            a.download = "void-drop-qr.png";
+            a.click();
+        }
+    }
+    
     function toBase64(u8) { return btoa(String.fromCharCode.apply(null, u8)); }
     function fromBase64(str) { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
-    function deriveIv(baseIv, counter) { const iv = new Uint8Array(baseIv); const view = new DataView(iv.buffer); const currentLast4 = view.getUint32(8, true); view.setUint32(8, currentLast4 ^ counter, true); return iv; }
-    async function deriveKeyFromPassword(password, salt) { const enc = new TextEncoder(); const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]); return await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
+    
+    function deriveIv(baseIv, counter) {
+        const iv = new Uint8Array(baseIv);
+        const view = new DataView(iv.buffer);
+        const currentLast4 = view.getUint32(8, true);
+        view.setUint32(8, currentLast4 ^ counter, true);
+        return iv;
+    }
+
+    async function deriveKeyFromPassword(password, salt) {
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+        return await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    }
 </script>

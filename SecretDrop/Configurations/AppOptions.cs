@@ -13,5 +13,9 @@
 
         // Максимальный размер загрузки в байтах (по умолчанию 5 ГБ)
         public long MaxUploadSizeBytes { get; set; } = 5L * 1024 * 1024 * 1024;
+
+        public bool UseCaptcha { get; set; } = false;
+        public string CaptchaSecretKey { get; set; }  // Ключ для сервера
+        public string CaptchaSiteKey { get; set; }  // Ключ для фронтенда
     }
 }
