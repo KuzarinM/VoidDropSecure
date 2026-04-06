@@ -5,7 +5,6 @@
 }
 
 <div class="animate-fade-in">
-    
     @if (!Model.IsSenderMode)
     {
         <!-- === РЕЖИМ СОЗДАТЕЛЯ (ПОЛУЧАТЕЛЯ) === -->
@@ -69,14 +68,12 @@
                  <div class="text-[10px] font-mono text-zinc-600">RSA-2048</div>
             </div>
             
-            <!-- Tabs -->
             <div class="grid grid-cols-3 gap-2 mb-6 bg-zinc-950 p-1 rounded border border-zinc-800">
-                <button id="tab-file" onclick="switchTab('file')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase active-tab">ФАЙЛ</button>
+                <button id="tab-file" onclick="switchTab('file')" class="py-2 text-xs font-mono font-bold rounded text-zinc-300 transition uppercase bg-zinc-800">ФАЙЛ</button>
                 <button id="tab-text" onclick="switchTab('text')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">ТЕКСТ</button>
                 <button id="tab-image" onclick="switchTab('image')" class="py-2 text-xs font-mono font-bold rounded text-zinc-500 hover:text-zinc-300 transition uppercase">ФОТО</button>
             </div>
 
-            <!-- PANES -->
             <div id="pane-file" class="mb-6">
                 <div class="border-2 border-dashed border-zinc-700 bg-zinc-950/30 p-8 text-center rounded cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-900/5 transition group" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-upload text-3xl text-zinc-600 group-hover:text-emerald-500 transition mb-3 block"></i>
@@ -138,19 +135,19 @@
         </div>
     }
 
-    <!-- ОБЩЕЕ МОДАЛЬНОЕ ОКНО ДЛЯ КАПЧИ -->
+    <!-- МОДАЛЬНОЕ ОКНО (ВЫНЕСЕНО ИЗ УСЛОВИЙ) -->
     <div class="modal fade" id="captchaModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark border-secondary shadow-lg">
-                <div class="modal-header border-0 text-center d-block">
-                    <h5 class="modal-title text-white">Проверка безопасности</h5>
-                    <p class="text-muted small mb-0">Пожалуйста, подтвердите, что вы человек</p>
+            <div class="modal-content bg-zinc-900 border border-zinc-800 shadow-2xl">
+                <div class="modal-header border-0 text-center d-block pt-6">
+                    <h5 class="modal-title text-white font-mono uppercase tracking-widest">Проверка узла</h5>
+                    <p class="text-zinc-500 text-[10px] font-mono mt-2">ПОДТВЕРДИТЕ, ЧТО ВЫ ЧЕЛОВЕК</p>
                 </div>
-                <div class="modal-body d-flex justify-content-center py-4">
+                <div class="modal-body flex justify-center py-8">
                     <div id="captcha-container"></div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-link text-muted w-100 text-decoration-none" data-bs-dismiss="modal">Отмена</button>
+                <div class="modal-footer border-0 pb-6">
+                    <button type="button" class="btn btn-link text-zinc-600 hover:text-zinc-400 font-mono text-xs w-100 text-decoration-none" data-bs-dismiss="modal">ОТМЕНА</button>
                 </div>
             </div>
         </div>
@@ -159,6 +156,7 @@
 
 <style>
     @@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+    .active-tab { background-color: #27272a !important; color: #10b981 !important; }
 </style>
 
 @if (Model.IsCaptchaEnabled)
@@ -173,12 +171,12 @@
     let selectedImageBlob = null;
     let privateKeyObj = null;
     let captchaWidgetId = null;
-    const siteKey = "@Model.PublickKey";
+    
+    // ПРОВЕРЬ: Название в C# должно быть именно CaptchaSiteKey или поправь тут
+    const siteKey = "@Model.PublickKey"; 
     const isCaptchaEnabled = @(Model.IsCaptchaEnabled ? "true" : "false");
 
-    // --- ОБЩАЯ ФУНКЦИЯ ВЫЗОВА КАПЧИ ---
     function showCaptcha(onSuccessCallback) {
-
         if(!isCaptchaEnabled){
             onSuccessCallback(null);
             return;
@@ -203,7 +201,7 @@
         });
     }
 
-
+    // --- ЛОГИКА ПОЛУЧАТЕЛЯ ---
     async function createRequest() {
         showCaptcha(executeActualCreate);
     }
@@ -229,11 +227,11 @@
                 })
             });
 
-            if (!resp.ok) throw new Error("Ошибка проверки капчи сервером");
+            if (!resp.ok) throw new Error("Ошибка безопасности");
 
             const { id } = await resp.json();
-            document.getElementById('creator-step-1').classList.add('d-none');
-            document.getElementById('creator-step-2').classList.remove('d-none');
+            document.getElementById('creator-step-1').classList.add('hidden');
+            document.getElementById('creator-step-2').classList.remove('hidden');
             const link = `${window.location.origin}/request/${id}`;
             document.getElementById('requestLink').value = link;
             
@@ -246,9 +244,10 @@
         } catch (e) {
             alert("Ошибка: " + e.message);
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-link-45deg me-2"></i>Создать шлюз';
+            btn.innerHTML = 'СОЗДАТЬ ШЛЮЗ';
         }
     }
+
     async function pollStatus(sessionId) {
         const interval = setInterval(async () => {
             try {
@@ -258,9 +257,10 @@
             } catch (e) { console.error(e); }
         }, 2000);
     }
+
     async function finishReceive(data) {
         document.getElementById('creator-step-2').innerHTML = 
-            `<h3 class="mt-5"><span class="spinner-border text-primary"></span> Дешифровка ключа...</h3>`;
+            `<h3 class="mt-5 text-emerald-500 font-mono text-sm animate-pulse">ДЕШИФРОВКА КАНАЛА...</h3>`;
         try {
             const encKeyBytes = fromBase64(data.encryptedKey);
             const rawOuterKey = await window.crypto.subtle.decrypt(
@@ -276,16 +276,11 @@
         }
     }
 
-    // ==========================================
-    // ЛОГИКА ОТПРАВИТЕЛЯ (SENDER)
-    // ==========================================
-    
+    // --- ЛОГИКА ОТПРАВИТЕЛЯ ---
     async function startReverseUpload() {
-        // Базовая валидация перед вызовом капчи
         if (currentMode === 'file' && !document.getElementById('fileInput').files[0]) { alert("Выберите файл"); return; }
         if (currentMode === 'image' && !selectedImageBlob) { alert("Нет картинки"); return; }
         if (currentMode === 'text' && !document.getElementById('textInput').value) { alert("Введите текст"); return; }
-        
         const usePass = document.getElementById('usePassword').checked;
         if (usePass && !document.getElementById('senderPassword').value) { alert("Введите пароль"); return; }
 
@@ -316,8 +311,8 @@
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Шифрование...';
-        progressArea.classList.remove('d-none');
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">/</span> ШИФРОВАНИЕ...';
+        progressArea.classList.remove('hidden');
 
         try {
             const fileKey = await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
@@ -360,15 +355,14 @@
                     limit: 2,
                     passwordSalt: passwordSalt,
                     wrappedKey: serverWrappedKey,
-                    captchaToken: captchaToken // ПЕРЕДАЕМ ТОКЕН ТУДА
+                    captchaToken: captchaToken 
                 })
             });
-            if (!initResp.ok) throw new Error("Ошибка инициализации (капча?)");
+            if (!initResp.ok) throw new Error("Запрос отклонен узлом");
             const { id: fileId } = await initResp.json();
 
             let offset = 0;
             let chunkIndex = 0;
-
             while (offset < blobToSend.size) {
                 const chunkBlob = blobToSend.slice(offset, offset + CHUNK_SIZE);
                 const chunkBuffer = await chunkBlob.arrayBuffer();
@@ -396,8 +390,8 @@
                 })
             });
 
-            document.getElementById('sender-ui').classList.add('d-none');
-            document.getElementById('sender-success').classList.remove('d-none');
+            document.getElementById('sender-ui').classList.add('hidden');
+            document.getElementById('sender-success').classList.remove('hidden');
 
         } catch (e) {
             console.error(e);
@@ -406,28 +400,27 @@
         }
     }
 
-    // --- Helpers (Common) ---
+    // --- HELPERS (Утилиты) ---
     function switchTab(mode) {
         currentMode = mode;
         ['file', 'text', 'image'].forEach(t => {
-            document.getElementById(`tab-${t}`).className = (mode === t) ? 'nav-link active' : 'nav-link';
-            const pane = document.getElementById(`pane-${t}`);
-            pane.classList.toggle('d-none', mode !== t);
+            const btn = document.getElementById(`tab-${t}`);
+            btn.classList.toggle('active-tab', mode === t);
+            btn.classList.toggle('text-zinc-500', mode !== t);
+            document.getElementById(`pane-${t}`).classList.toggle('hidden', mode !== t);
         });
     }
 
     function togglePassword(chk) {
-        const block = document.getElementById('passwordBlock');
-        block.classList.toggle('d-none', !chk.checked);
+        document.getElementById('passwordBlock').classList.toggle('hidden', !chk.checked);
         if(chk.checked) setTimeout(() => document.getElementById('senderPassword').focus(), 50);
-        else document.getElementById('senderPassword').value = '';
     }
 
     function updateFileName(input) {
         if (input.files[0]) {
             const d = document.getElementById('fileNameDisplay');
             d.innerText = input.files[0].name;
-            d.classList.add('text-primary', 'fw-bold');
+            d.classList.add('text-emerald-500');
         }
     }
 
@@ -440,10 +433,10 @@
         selectedImageBlob = file;
         const reader = new FileReader();
         reader.onload = (e) => {
-            document.getElementById('imagePreviewPlaceholder').classList.add('d-none');
+            document.getElementById('imagePreviewPlaceholder').classList.add('hidden');
             const img = document.getElementById('imagePreview');
             img.src = e.target.result;
-            img.classList.remove('d-none');
+            img.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
     }
