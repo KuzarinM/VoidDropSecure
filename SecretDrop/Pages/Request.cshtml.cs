@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
+using SecretDrop.Configurations;
 using SecretDrop.Models;
+using SecretDrop.Services.Implementations;
 using SecretDrop.Services.Interfaces;
 
 namespace SecretDrop.Pages
@@ -10,11 +13,15 @@ namespace SecretDrop.Pages
     {
         private readonly IDropSessionStore _dropStore;
         private readonly ISecretFileStore _fileStore;
+        private readonly ICaptchaService _captchaService;
+        private readonly AppOptions _appOptions;
 
-        public RequestModel(IDropSessionStore dropStore, ISecretFileStore fileStore)
+        public RequestModel(IDropSessionStore dropStore, ISecretFileStore fileStore, IOptions<AppOptions> options, ICaptchaService captchaService)
         {
             _dropStore = dropStore;
             _fileStore = fileStore;
+            _appOptions = options.Value;
+            _captchaService = captchaService;
         }
 
         // Данные для View
@@ -22,6 +29,8 @@ namespace SecretDrop.Pages
         public string? ReceiverPublicKey { get; set; }
         public bool IsSenderMode => !string.IsNullOrEmpty(SessionId);
 
+        public string PublickKey => _appOptions.CaptchaSiteKey;
+        public bool IsCaptchaEnabled => _appOptions.UseCaptcha;
         public IActionResult OnGet(string? id)
         {
             if (string.IsNullOrEmpty(id)) return Page(); // Mode: Creator
@@ -36,9 +45,16 @@ namespace SecretDrop.Pages
         }
 
         // 1. Creator создает сессию
-        public IActionResult OnPostCreateSession([FromBody] string publicKey)
+        public async Task<IActionResult> OnPostCreateSession([FromBody] CreateSessionRequest req)
         {
-            var id = _dropStore.CreateSession(publicKey);
+            // 1. Валидация капчи
+            if (!await _captchaService.VerifyToken(req.CaptchaToken ?? ""))
+            {
+                return BadRequest("Captcha validation failed.");
+            }
+
+            // 2. Создание сессии (используем req.PublicKey вместо publicKey)
+            var id = _dropStore.CreateSession(req.PublicKey);
             return new JsonResult(new { id });
         }
 

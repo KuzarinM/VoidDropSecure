@@ -33,6 +33,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddSingleton<ISecretFileStore, FileStoreService>();
 builder.Services.AddHostedService<FileCleanupWorker>();
 builder.Services.AddSingleton<IDropSessionStore, DropSessionStore>();
+builder.Services.AddHttpClient<ICaptchaService>();
+builder.Services.AddScoped<ICaptchaService, CaptchaService>();
 builder.Services.AddMemoryCache();
 
 builder.Services.Configure<RouteOptions>(options =>
@@ -41,7 +43,9 @@ builder.Services.Configure<RouteOptions>(options =>
     options.LowercaseQueryStrings = false; // Query string (?a=B) лучше не трогать, там может быть Base64
 });
 
+
 var app = builder.Build();
+
 
 app.UseStaticFiles();
 app.UseRouting();
