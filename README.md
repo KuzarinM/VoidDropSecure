@@ -71,6 +71,9 @@ services:
 | `AppConfig__StoragePath` | `SecretData` | Путь к папке, где хранятся зашифрованные файлы и метаданные. |
 | `AppConfig__CleanupIntervalMinutes` | `10` | Как часто запускать фоновый процесс очистки просроченных файлов. |
 | `AppConfig__MaxUploadSizeBytes` | `5368709120` | Максимальный размер файла (байт). Default: 5 GB. |
+| `AppConfig__UseCaptcha` | `false` | Использовать ли капчу |
+| `AppConfig__CaptchaSecretKey` | - | Серверный ключ для капчи |
+| `AppConfig__CaptchaSiteKey` | - | Публичный ключ для капчи |
 
 ## 🛡️ Архитектура безопасности
 
